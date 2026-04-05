@@ -73,7 +73,7 @@ export class FakePrincipalRepository implements PrincipalRepository {
   }
 
   async create(data: PrincipalCreateData): Promise<Principal> {
-    const p: Principal = { ...data, metadata_json: data.metadata_json ?? null };
+    const p = { ...data, metadata_json: data.metadata_json ?? null } as Principal;
     this.store.set(p.id, p);
     return p;
   }
@@ -81,7 +81,7 @@ export class FakePrincipalRepository implements PrincipalRepository {
   async update(id: string, data: PrincipalPatchData): Promise<Principal> {
     const existing = this.store.get(id);
     if (!existing) throw new NotFoundError('principal', id);
-    const updated = { ...existing, ...data };
+    const updated = { ...existing, ...data } as Principal;
     this.store.set(id, updated);
     return updated;
   }
@@ -146,7 +146,7 @@ export class FakeTaskRepository implements TaskRepository {
   }
 
   async create(data: TaskCreateData): Promise<Task> {
-    const t: Task = { ...data };
+    const t = { ...data } as Task;
     this.store.set(t.id, t);
     return t;
   }
@@ -157,7 +157,7 @@ export class FakeTaskRepository implements TaskRepository {
     if (existing.version !== expectedVersion) {
       throw new ConflictError(`version mismatch: expected ${expectedVersion}, got ${existing.version}`);
     }
-    const updated: Task = { ...existing, ...data };
+    const updated = { ...existing, ...data } as Task;
     this.store.set(id, updated);
     return updated;
   }
@@ -190,7 +190,7 @@ export class FakeTaskUpdateRepository implements TaskUpdateRepository {
   }
 
   async create(data: TaskUpdateCreateData): Promise<TaskUpdate> {
-    const u: TaskUpdate = { ...data, metadata_json: data.metadata_json ?? null };
+    const u = { ...data, metadata_json: data.metadata_json ?? null } as TaskUpdate;
     this.store.push(u);
     return u;
   }
