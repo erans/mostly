@@ -197,7 +197,7 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
       };
       if (params.metadata_json) {
         try {
-          body.metadata = JSON.parse(params.metadata_json);
+          body.metadata_json = JSON.parse(params.metadata_json);
         } catch {
           return {
             content: [{ type: 'text', text: 'Error: metadata_json is not valid JSON' }],

@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['**/*.test.ts'],
+    include: ['e2e/**/*.test.ts'],
+    root: resolve(__dirname, '..'),
   },
 });
