@@ -159,36 +159,35 @@ export class DrizzleTaskRepository implements TaskRepository {
   }
 
   async nextKeyNumber(workspaceId: string, prefix: string): Promise<number> {
-    // Wrap in a transaction to make upsert + read atomic
-    return this.db.transaction((tx) => {
-      tx
-        .insert(taskKeySequences)
-        .values({
-          workspace_id: workspaceId,
-          prefix,
-          next_number: 2, // If inserting fresh, we allocate number 1 and set next to 2
-        })
-        .onConflictDoUpdate({
-          target: [taskKeySequences.workspace_id, taskKeySequences.prefix],
-          set: {
-            next_number: sql`${taskKeySequences.next_number} + 1`,
-          },
-        })
-        .run();
+    // Upsert + read. Atomicity is provided by the outer transaction from TaskService.create().
+    // For a single-connection SQLite (local-first), no interleaving is possible.
+    this.db
+      .insert(taskKeySequences)
+      .values({
+        workspace_id: workspaceId,
+        prefix,
+        next_number: 2,
+      })
+      .onConflictDoUpdate({
+        target: [taskKeySequences.workspace_id, taskKeySequences.prefix],
+        set: {
+          next_number: sql`${taskKeySequences.next_number} + 1`,
+        },
+      })
+      .run();
 
-      const rows = tx
-        .select()
-        .from(taskKeySequences)
-        .where(
-          and(
-            eq(taskKeySequences.workspace_id, workspaceId),
-            eq(taskKeySequences.prefix, prefix),
-          ),
-        )
-        .all();
+    const rows = this.db
+      .select()
+      .from(taskKeySequences)
+      .where(
+        and(
+          eq(taskKeySequences.workspace_id, workspaceId),
+          eq(taskKeySequences.prefix, prefix),
+        ),
+      )
+      .all();
 
-      return rows[0].next_number - 1;
-    });
+    return rows[0].next_number - 1;
   }
 
   async findWithExpiredClaims(workspaceId: string): Promise<Task[]> {

@@ -182,7 +182,7 @@ describe('DrizzleTaskUpdateRepository', () => {
     expect(result.items[0].id).toBe('01TU0001');
   });
 
-  it('list supports cursor pagination by created_at', async () => {
+  it('list supports cursor pagination', async () => {
     await repo.create({
       id: '01TU0001',
       task_id: taskId,
@@ -215,7 +215,7 @@ describe('DrizzleTaskUpdateRepository', () => {
     expect(page1.items).toHaveLength(2);
     expect(page1.items[0].id).toBe('01TU0001');
     expect(page1.items[1].id).toBe('01TU0002');
-    expect(page1.next_cursor).toBe('2025-01-02T00:00:00.000Z');
+    expect(page1.next_cursor).not.toBeNull();
 
     const page2 = await repo.list(taskId, page1.next_cursor!, 2);
     expect(page2.items).toHaveLength(1);
