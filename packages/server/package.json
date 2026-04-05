@@ -19,6 +19,9 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
   "dependencies": {
     "@mostly/types": "workspace:*",
     "@mostly/core": "workspace:*",
