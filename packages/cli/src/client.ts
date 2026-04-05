@@ -73,6 +73,11 @@ export class MostlyClient {
       throw new Error(message);
     }
 
-    return res.json();
+    if (res.status === 204) return null;
+    const contentType = res.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      return res.json();
+    }
+    return null;
   }
 }
