@@ -1,2 +1,4 @@
 export { principalRoutes } from './principals.js';
 export { projectRoutes } from './projects.js';
+export { taskRoutes } from './tasks.js';
+export { maintenanceRoutes } from './maintenance.js';
