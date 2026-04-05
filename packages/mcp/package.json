@@ -1,0 +1,27 @@
+{
+  "name": "@mostly/mcp",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "mostly-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mostly/types": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm"],
+    "dts": true,
+    "clean": true,
+    "sourcemap": true,
+    "banner": { "js": "#!/usr/bin/env node" }
+  }
+}
