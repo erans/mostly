@@ -11,7 +11,9 @@ async function resolveProject(
   id: string,
 ): Promise<Project> {
   try {
-    return await projectService.get(id);
+    const p = await projectService.get(id);
+    if (p.workspace_id !== workspaceId) throw new NotFoundError('project', id);
+    return p;
   } catch (err) {
     if (err instanceof NotFoundError) {
       return await projectService.getByKey(workspaceId, id);

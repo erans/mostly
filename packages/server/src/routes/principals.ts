@@ -11,7 +11,9 @@ async function resolvePrincipal(
   id: string,
 ): Promise<Principal> {
   try {
-    return await principalService.get(id);
+    const p = await principalService.get(id);
+    if (p.workspace_id !== workspaceId) throw new NotFoundError('principal', id);
+    return p;
   } catch (err) {
     if (err instanceof NotFoundError) {
       return await principalService.getByHandle(workspaceId, id);

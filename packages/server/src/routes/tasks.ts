@@ -22,7 +22,9 @@ async function resolveTask(
   id: string,
 ): Promise<Task> {
   try {
-    return await taskService.get(id);
+    const t = await taskService.get(id);
+    if (t.workspace_id !== workspaceId) throw new NotFoundError('task', id);
+    return t;
   } catch (err) {
     if (err instanceof NotFoundError) {
       return await taskService.getByKey(workspaceId, id);
