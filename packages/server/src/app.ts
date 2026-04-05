@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
 import { errorHandler, authMiddleware, actorMiddleware } from './middleware/index.js';
+import { principalRoutes, projectRoutes } from './routes/index.js';
 
 export type AppEnv = {
   Variables: {
@@ -44,6 +45,10 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
 
   // Actor resolution — resolves actor from body on mutating requests
   app.use('*', actorMiddleware());
+
+  // API routes
+  app.route('/v0/principals', principalRoutes());
+  app.route('/v0/projects', projectRoutes());
 
   return app;
 }
