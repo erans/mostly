@@ -75,7 +75,7 @@ export class MostlyClient {
 
     if (res.status === 204) return null;
     const contentType = res.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
+    if (/application\/(.+\+)?json/i.test(contentType)) {
       return res.json();
     }
     return null;
