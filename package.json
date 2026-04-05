@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
-    "lint": "pnpm -r run lint",
-    "clean": "pnpm -r run clean"
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "clean": "pnpm -r --if-present run clean"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
