@@ -84,7 +84,7 @@ CREATE TABLE `task` (
 );
 --> statement-breakpoint
 CREATE INDEX `task_workspace_status_idx` ON `task` (`workspace_id`,`status`);--> statement-breakpoint
-CREATE INDEX `task_workspace_key_idx` ON `task` (`workspace_id`,`key`);--> statement-breakpoint
+CREATE UNIQUE INDEX `task_workspace_key_idx` ON `task` (`workspace_id`,`key`);--> statement-breakpoint
 CREATE INDEX `task_workspace_assignee_idx` ON `task` (`workspace_id`,`assignee_id`);--> statement-breakpoint
 CREATE INDEX `task_workspace_claimed_idx` ON `task` (`workspace_id`,`claimed_by_id`);--> statement-breakpoint
 CREATE INDEX `task_workspace_project_idx` ON `task` (`workspace_id`,`project_id`);--> statement-breakpoint

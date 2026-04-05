@@ -1,4 +1,4 @@
-import { eq, and, gt, lt, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, gt, lte, isNotNull, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { TaskRepository, TaskCreateData, TaskUpdateData, TaskListFilters, PaginatedResult } from '@mostly/core';
 import type { Task } from '@mostly/types';
@@ -159,40 +159,36 @@ export class DrizzleTaskRepository implements TaskRepository {
   }
 
   async nextKeyNumber(workspaceId: string, prefix: string): Promise<number> {
-    // Atomically allocate the next key number using INSERT ... ON CONFLICT DO UPDATE
-    // The returning() method in Drizzle for SQLite is limited, so we use a two-step approach:
-    // 1. Upsert to increment the counter
-    // 2. Read back the current value (which is the one we just allocated)
-    this.db
-      .insert(taskKeySequences)
-      .values({
-        workspace_id: workspaceId,
-        prefix,
-        next_number: 2, // If inserting fresh, we allocate number 1 and set next to 2
-      })
-      .onConflictDoUpdate({
-        target: [taskKeySequences.workspace_id, taskKeySequences.prefix],
-        set: {
-          next_number: sql`${taskKeySequences.next_number} + 1`,
-        },
-      })
-      .run();
+    // Wrap in a transaction to make upsert + read atomic
+    return this.db.transaction((tx) => {
+      tx
+        .insert(taskKeySequences)
+        .values({
+          workspace_id: workspaceId,
+          prefix,
+          next_number: 2, // If inserting fresh, we allocate number 1 and set next to 2
+        })
+        .onConflictDoUpdate({
+          target: [taskKeySequences.workspace_id, taskKeySequences.prefix],
+          set: {
+            next_number: sql`${taskKeySequences.next_number} + 1`,
+          },
+        })
+        .run();
 
-    // Read back: if the row was just inserted, next_number = 2, so allocated = 1
-    // If the row existed and was incremented, next_number = old+1, so allocated = old
-    const rows = this.db
-      .select()
-      .from(taskKeySequences)
-      .where(
-        and(
-          eq(taskKeySequences.workspace_id, workspaceId),
-          eq(taskKeySequences.prefix, prefix),
-        ),
-      )
-      .all();
+      const rows = tx
+        .select()
+        .from(taskKeySequences)
+        .where(
+          and(
+            eq(taskKeySequences.workspace_id, workspaceId),
+            eq(taskKeySequences.prefix, prefix),
+          ),
+        )
+        .all();
 
-    // The allocated number is next_number - 1
-    return rows[0].next_number - 1;
+      return rows[0].next_number - 1;
+    });
   }
 
   async findWithExpiredClaims(workspaceId: string): Promise<Task[]> {
@@ -204,7 +200,7 @@ export class DrizzleTaskRepository implements TaskRepository {
         and(
           eq(tasks.workspace_id, workspaceId),
           isNotNull(tasks.claimed_by_id),
-          lt(tasks.claim_expires_at, now),
+          lte(tasks.claim_expires_at, now),
         ),
       )
       .all();

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { workspaces } from './workspace';
 
 export const tasks = sqliteTable('task', {
@@ -22,7 +22,7 @@ export const tasks = sqliteTable('task', {
   updated_at: text('updated_at').notNull(),
 }, (table) => [
   index('task_workspace_status_idx').on(table.workspace_id, table.status),
-  index('task_workspace_key_idx').on(table.workspace_id, table.key),
+  uniqueIndex('task_workspace_key_idx').on(table.workspace_id, table.key),
   index('task_workspace_assignee_idx').on(table.workspace_id, table.assignee_id),
   index('task_workspace_claimed_idx').on(table.workspace_id, table.claimed_by_id),
   index('task_workspace_project_idx').on(table.workspace_id, table.project_id),

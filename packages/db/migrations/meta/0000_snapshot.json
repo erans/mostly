@@ -574,7 +574,7 @@
             "workspace_id",
             "key"
           ],
-          "isUnique": false
+          "isUnique": true
         },
         "task_workspace_assignee_idx": {
           "name": "task_workspace_assignee_idx",
