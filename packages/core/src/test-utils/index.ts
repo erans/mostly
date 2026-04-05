@@ -1,1 +1,2 @@
-// @mostly/core test utilities
+export * from './factories.js';
+export * from './fakes.js';
