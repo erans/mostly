@@ -1,0 +1,30 @@
+{
+  "name": "@mostly/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "mostly": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mostly/types": "workspace:*",
+    "@mostly/server": "workspace:*",
+    "@mostly/db": "workspace:*",
+    "commander": "^13.1.0"
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm"],
+    "dts": false,
+    "clean": true,
+    "sourcemap": true,
+    "banner": {
+      "js": "#!/usr/bin/env node"
+    }
+  }
+}

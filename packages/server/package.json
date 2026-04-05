@@ -1,0 +1,36 @@
+{
+  "name": "@mostly/server",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./serve": {
+      "import": "./dist/serve.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mostly/types": "workspace:*",
+    "@mostly/core": "workspace:*",
+    "@mostly/db": "workspace:*",
+    "hono": "^4.7.0",
+    "@hono/node-server": "^1.14.0"
+  },
+  "tsup": {
+    "entry": ["src/index.ts", "src/serve.ts"],
+    "format": ["esm"],
+    "dts": true,
+    "clean": true,
+    "sourcemap": true
+  }
+}

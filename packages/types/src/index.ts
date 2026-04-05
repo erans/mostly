@@ -1,0 +1,1 @@
+// @mostly/types - shared vocabulary
