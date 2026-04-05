@@ -146,12 +146,12 @@ export const TaskListParams = z.object({
   project_id: z.string().optional(),
   claimed_by_id: z.string().optional(),
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().positive().max(100).default(50).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
 });
 export type TaskListParams = z.infer<typeof TaskListParams>;
 
 export const ListParams = z.object({
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().positive().max(100).default(50).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
 });
 export type ListParams = z.infer<typeof ListParams>;
