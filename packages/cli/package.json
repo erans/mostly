@@ -13,9 +13,12 @@
   },
   "dependencies": {
     "@mostly/types": "workspace:*",
+    "@mostly/core": "workspace:*",
     "@mostly/server": "workspace:*",
     "@mostly/db": "workspace:*",
-    "commander": "^13.1.0"
+    "@hono/node-server": "^1.14.0",
+    "commander": "^13.1.0",
+    "ulid": "^2.3.0"
   },
   "tsup": {
     "entry": ["src/index.ts"],
