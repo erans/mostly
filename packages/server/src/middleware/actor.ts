@@ -36,6 +36,12 @@ export function actorMiddleware(): MiddlewareHandler<AppEnv> {
         let principal;
         if (actorId) {
           principal = await principalService.get(actorId);
+          if (principal.workspace_id !== workspaceId) {
+            return c.json(
+              { error: { code: 'not_found', message: `principal not found: ${actorId}` } },
+              404,
+            );
+          }
         } else {
           principal = await principalService.getByHandle(workspaceId, actorHandle!);
         }

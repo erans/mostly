@@ -33,6 +33,8 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   // Inject services and workspace into context
   app.use('*', async (c, next) => {
     c.set('workspaceId', deps.workspaceId);
+    c.set('actorId', '');
+    c.set('parsedBody', {});
     c.set('principalService', deps.principalService);
     c.set('projectService', deps.projectService);
     c.set('taskService', deps.taskService);
