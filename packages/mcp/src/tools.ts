@@ -25,7 +25,7 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
 
       const result = await client.get('/v0/tasks', queryParams);
       return {
-        content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     }
   );
@@ -104,8 +104,8 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
     'Transition a task to a new status',
     {
       id: z.string().describe('Task ID (ULID) or key'),
-      to_status: z.string().describe('Target status (e.g., in_progress, completed, blocked, cancelled)'),
-      resolution: z.string().optional().describe('Resolution when completing or cancelling (e.g., completed, wont_do)'),
+      to_status: z.enum(['open', 'claimed', 'in_progress', 'blocked', 'closed', 'canceled']).describe('Target status'),
+      resolution: z.enum(['completed', 'duplicate', 'invalid', 'wont_do', 'deferred']).optional().describe('Resolution for terminal statuses'),
       expected_version: z.number().describe('Expected current version for optimistic locking'),
     },
     async (params) => {
@@ -195,7 +195,16 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
         kind: params.kind,
         body: params.body,
       };
-      if (params.metadata_json) body.metadata_json = params.metadata_json;
+      if (params.metadata_json) {
+        try {
+          body.metadata = JSON.parse(params.metadata_json);
+        } catch {
+          return {
+            content: [{ type: 'text', text: 'Error: metadata_json is not valid JSON' }],
+            isError: true,
+          };
+        }
+      }
 
       const result = await client.post(`/v0/tasks/${params.task_id}/updates`, body);
       return {
@@ -218,7 +227,7 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
 
       const result = await client.get('/v0/projects', queryParams);
       return {
-        content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     }
   );
@@ -251,7 +260,7 @@ export function registerTools(server: McpServer, client: MostlyMcpClient): void 
 
       const result = await client.get('/v0/principals', queryParams);
       return {
-        content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };
     }
   );

@@ -92,7 +92,7 @@ export class MostlyMcpClient {
 
     if (res.status === 204) return null;
     const contentType = res.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
+    if (contentType.includes('json')) {
       return res.json();
     }
     return null;
