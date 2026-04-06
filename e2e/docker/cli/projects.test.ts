@@ -11,8 +11,9 @@ describe('CLI: project operations', () => {
   });
 
   it('lists projects', async () => {
-    const { stdout, exitCode } = await runCli(['project', 'list']);
+    const { result, exitCode } = await runCliJson(['project', 'list']);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('CLIP');
+    const keys = result.items.map((p: any) => p.key);
+    expect(keys).toContain('CLIP');
   });
 });

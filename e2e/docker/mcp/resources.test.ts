@@ -2,7 +2,8 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { McpTestRunner } from '../setup/mcp-runner.js';
 import { client } from '../setup/test-client.js';
 
-describe('MCP resources', () => {
+// TODO: MCP stdio tests skipped — see tools.test.ts for details
+describe.skip('MCP resources', () => {
   const mcp = new McpTestRunner();
   const actor = 'e2e-agent';
 

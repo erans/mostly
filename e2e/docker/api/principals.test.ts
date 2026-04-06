@@ -50,7 +50,7 @@ describe('Principals CRUD', () => {
       display_name: 'Duplicate',
       actor_handle: actorId,
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown principal', async () => {

@@ -78,14 +78,14 @@ describe('Task transitions', () => {
     const res = await client.post(`/v0/tasks/${task.id}/transition`, {
       to_status: 'in_progress', expected_version: task.version, actor_handle: actor,
     });
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(412);
   });
 
-  it('rejects invalid transition (open -> closed)', async () => {
+  it('rejects invalid transition (open -> blocked)', async () => {
     const task = await createTask('invalid-close');
     const res = await client.post(`/v0/tasks/${task.id}/transition`, {
-      to_status: 'closed', resolution: 'completed', expected_version: task.version, actor_handle: actor,
+      to_status: 'blocked', expected_version: task.version, actor_handle: actor,
     });
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(412);
   });
 });

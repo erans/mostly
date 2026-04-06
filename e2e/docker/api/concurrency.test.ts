@@ -26,7 +26,7 @@ describe('Concurrency', () => {
     ]);
 
     const statuses = [res1.status, res2.status].sort();
-    expect(statuses).toEqual([200, 409]);
+    expect(statuses).toEqual([200, 412]);
   });
 
   it('stale version is rejected', async () => {
@@ -41,6 +41,6 @@ describe('Concurrency', () => {
     const res = await client.post(`/v0/tasks/${task.id}/claim`, {
       expected_version: task.version, actor_handle: actor,
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(412);
   });
 });

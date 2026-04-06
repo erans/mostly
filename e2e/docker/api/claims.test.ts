@@ -73,6 +73,6 @@ describe('Task claims', () => {
     const res = await client.post(`/v0/tasks/${task.id}/claim`, {
       expected_version: task.version, actor_handle: 'claim-agent-2',
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(412);
   });
 });

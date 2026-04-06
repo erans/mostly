@@ -50,6 +50,6 @@ describe('CLI: task operations', () => {
     const { result, exitCode } = await runCliJson(['task', 'close', 'CCLI-1']);
     expect(exitCode).toBe(0);
     // CLI close command transitions to 'completed' status
-    expect(['closed', 'completed']).toContain(result.status);
+    expect(result.status).toBe('closed');
   });
 });

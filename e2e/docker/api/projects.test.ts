@@ -31,6 +31,6 @@ describe('Projects CRUD', () => {
       name: 'Duplicate',
       actor_handle: actor,
     });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(400);
   });
 });

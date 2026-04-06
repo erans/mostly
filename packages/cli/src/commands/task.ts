@@ -267,7 +267,7 @@ export function taskCommand(): Command {
         const client = new MostlyClient(config.serverUrl, config.token, config.actor);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = {
-          to_status: 'completed',
+          to_status: 'closed',
           expected_version: task.version,
           resolution: opts.resolution ?? 'completed',
         };
@@ -293,7 +293,7 @@ export function taskCommand(): Command {
         const client = new MostlyClient(config.serverUrl, config.token, config.actor);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = {
-          to_status: 'cancelled',
+          to_status: 'canceled',
           expected_version: task.version,
           resolution: opts.resolution ?? 'wont_do',
         };
