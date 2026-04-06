@@ -299,35 +299,35 @@ describe('DrizzleTaskRepository', () => {
   // ---- cursor pagination ----
 
   it('list supports cursor pagination', async () => {
-    await repo.create(makeTask({ id: '01TK0001', key: 'P-1' }));
-    await repo.create(makeTask({ id: '01TK0002', key: 'P-2' }));
-    await repo.create(makeTask({ id: '01TK0003', key: 'P-3' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0001', key: 'P-1', created_at: '2025-01-01T00:00:01.000Z', updated_at: '2025-01-01T00:00:01.000Z' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0002', key: 'P-2', created_at: '2025-01-01T00:00:02.000Z', updated_at: '2025-01-01T00:00:02.000Z' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0003', key: 'P-3', created_at: '2025-01-01T00:00:03.000Z', updated_at: '2025-01-01T00:00:03.000Z' }));
 
     const page1 = await repo.list(wsId, {}, undefined, 2);
     expect(page1.items).toHaveLength(2);
-    expect(page1.next_cursor).toBe('01TK0002');
-    expect(page1.items[0].id).toBe('01TK0001');
-    expect(page1.items[1].id).toBe('01TK0002');
+    expect(page1.next_cursor).toBe('2025-01-01T00:00:02.000Z|tsk_aaaa0002');
+    expect(page1.items[0].id).toBe('tsk_aaaa0001');
+    expect(page1.items[1].id).toBe('tsk_aaaa0002');
 
     const page2 = await repo.list(wsId, {}, page1.next_cursor!, 2);
     expect(page2.items).toHaveLength(1);
-    expect(page2.items[0].id).toBe('01TK0003');
+    expect(page2.items[0].id).toBe('tsk_aaaa0003');
     expect(page2.next_cursor).toBeNull();
   });
 
   it('list pagination works with filters', async () => {
-    await repo.create(makeTask({ id: '01TK0001', key: 'P-1', status: 'open' }));
-    await repo.create(makeTask({ id: '01TK0002', key: 'P-2', status: 'closed' }));
-    await repo.create(makeTask({ id: '01TK0003', key: 'P-3', status: 'open' }));
-    await repo.create(makeTask({ id: '01TK0004', key: 'P-4', status: 'open' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0001', key: 'P-1', status: 'open', created_at: '2025-01-01T00:00:01.000Z', updated_at: '2025-01-01T00:00:01.000Z' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0002', key: 'P-2', status: 'closed', created_at: '2025-01-01T00:00:02.000Z', updated_at: '2025-01-01T00:00:02.000Z' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0003', key: 'P-3', status: 'open', created_at: '2025-01-01T00:00:03.000Z', updated_at: '2025-01-01T00:00:03.000Z' }));
+    await repo.create(makeTask({ id: 'tsk_aaaa0004', key: 'P-4', status: 'open', created_at: '2025-01-01T00:00:04.000Z', updated_at: '2025-01-01T00:00:04.000Z' }));
 
     const page1 = await repo.list(wsId, { status: 'open' }, undefined, 2);
     expect(page1.items).toHaveLength(2);
-    expect(page1.next_cursor).toBe('01TK0003');
+    expect(page1.next_cursor).toBe('2025-01-01T00:00:03.000Z|tsk_aaaa0003');
 
     const page2 = await repo.list(wsId, { status: 'open' }, page1.next_cursor!, 2);
     expect(page2.items).toHaveLength(1);
-    expect(page2.items[0].id).toBe('01TK0004');
+    expect(page2.items[0].id).toBe('tsk_aaaa0004');
     expect(page2.next_cursor).toBeNull();
   });
 

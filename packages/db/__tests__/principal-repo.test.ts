@@ -153,19 +153,19 @@ describe('DrizzlePrincipalRepository', () => {
   });
 
   it('list supports cursor pagination', async () => {
-    await repo.create({ id: '01PR0001', workspace_id: wsId, handle: 'a', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: now, updated_at: now });
-    await repo.create({ id: '01PR0002', workspace_id: wsId, handle: 'b', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: now, updated_at: now });
-    await repo.create({ id: '01PR0003', workspace_id: wsId, handle: 'c', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: now, updated_at: now });
+    await repo.create({ id: 'prin_aaa0001', workspace_id: wsId, handle: 'a', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: '2025-01-01T00:00:01.000Z', updated_at: '2025-01-01T00:00:01.000Z' });
+    await repo.create({ id: 'prin_aaa0002', workspace_id: wsId, handle: 'b', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: '2025-01-01T00:00:02.000Z', updated_at: '2025-01-01T00:00:02.000Z' });
+    await repo.create({ id: 'prin_aaa0003', workspace_id: wsId, handle: 'c', kind: 'human', display_name: null, metadata_json: null, is_active: true, created_at: '2025-01-01T00:00:03.000Z', updated_at: '2025-01-01T00:00:03.000Z' });
 
     const page1 = await repo.list(wsId, undefined, 2);
     expect(page1.items).toHaveLength(2);
-    expect(page1.next_cursor).toBe('01PR0002');
-    expect(page1.items[0].id).toBe('01PR0001');
-    expect(page1.items[1].id).toBe('01PR0002');
+    expect(page1.next_cursor).toBe('2025-01-01T00:00:02.000Z|prin_aaa0002');
+    expect(page1.items[0].id).toBe('prin_aaa0001');
+    expect(page1.items[1].id).toBe('prin_aaa0002');
 
     const page2 = await repo.list(wsId, page1.next_cursor!, 2);
     expect(page2.items).toHaveLength(1);
-    expect(page2.items[0].id).toBe('01PR0003');
+    expect(page2.items[0].id).toBe('prin_aaa0003');
     expect(page2.next_cursor).toBeNull();
   });
 

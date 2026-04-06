@@ -1,4 +1,4 @@
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, or } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
 import type { PrincipalRepository, PrincipalCreateData, PrincipalPatchData, PaginatedResult } from '@mostly/core';
 import type { Principal } from '@mostly/types';
@@ -41,22 +41,31 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
   async list(workspaceId: string, cursor?: string, limit: number = 50): Promise<PaginatedResult<Principal>> {
     const conditions = [eq(principals.workspace_id, workspaceId)];
     if (cursor) {
-      conditions.push(gt(principals.id, cursor));
+      const sepIdx = cursor.lastIndexOf('|');
+      const cursorTime = cursor.slice(0, sepIdx);
+      const cursorId = cursor.slice(sepIdx + 1);
+      conditions.push(
+        or(
+          gt(principals.created_at, cursorTime),
+          and(eq(principals.created_at, cursorTime), gt(principals.id, cursorId)),
+        )!,
+      );
     }
 
     const rows = await this.db
       .select()
       .from(principals)
       .where(and(...conditions))
-      .orderBy(principals.id)
+      .orderBy(principals.created_at, principals.id)
       .limit(limit + 1)
       .all();
 
     const hasMore = rows.length > limit;
     const items = (hasMore ? rows.slice(0, limit) : rows).map(toEntity);
+    const lastItem = items[items.length - 1];
     return {
       items,
-      next_cursor: hasMore ? items[items.length - 1].id : null,
+      next_cursor: hasMore && lastItem ? `${lastItem.created_at}|${lastItem.id}` : null,
     };
   }
 

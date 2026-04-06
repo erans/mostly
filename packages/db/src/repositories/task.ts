@@ -1,4 +1,4 @@
-import { eq, and, gt, lte, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, gt, lte, isNotNull, sql, or } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
 import type { TaskRepository, TaskCreateData, TaskUpdateData, TaskListFilters, PaginatedResult } from '@mostly/core';
 import type { Task } from '@mostly/types';
@@ -60,21 +60,32 @@ export class DrizzleTaskRepository implements TaskRepository {
     if (filters.project_id) conditions.push(eq(tasks.project_id, filters.project_id));
     if (filters.claimed_by_id) conditions.push(eq(tasks.claimed_by_id, filters.claimed_by_id));
 
-    if (cursor) conditions.push(gt(tasks.id, cursor));
+    if (cursor) {
+      const sepIdx = cursor.lastIndexOf('|');
+      const cursorTime = cursor.slice(0, sepIdx);
+      const cursorId = cursor.slice(sepIdx + 1);
+      conditions.push(
+        or(
+          gt(tasks.created_at, cursorTime),
+          and(eq(tasks.created_at, cursorTime), gt(tasks.id, cursorId)),
+        )!,
+      );
+    }
 
     const rows = await this.db
       .select()
       .from(tasks)
       .where(and(...conditions))
-      .orderBy(tasks.id)
+      .orderBy(tasks.created_at, tasks.id)
       .limit(limit + 1)
       .all();
 
     const hasMore = rows.length > limit;
     const items = (hasMore ? rows.slice(0, limit) : rows).map(toEntity);
+    const lastItem = items[items.length - 1];
     return {
       items,
-      next_cursor: hasMore ? items[items.length - 1].id : null,
+      next_cursor: hasMore && lastItem ? `${lastItem.created_at}|${lastItem.id}` : null,
     };
   }
 
