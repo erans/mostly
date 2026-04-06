@@ -5,8 +5,7 @@ export { DrizzleTaskRepository } from './task.js';
 export { DrizzleTaskUpdateRepository } from './task-update.js';
 export { DrizzleTransactionManager } from './transaction.js';
 
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type * as schema from '../schema/index.js';
+import type { MostlyDb } from '../types.js';
 import { DrizzleWorkspaceRepository } from './workspace.js';
 import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
@@ -14,7 +13,7 @@ import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
 import { DrizzleTransactionManager } from './transaction.js';
 
-export function createRepositories(db: BetterSQLite3Database<typeof schema>) {
+export function createRepositories(db: MostlyDb) {
   return {
     workspaces: new DrizzleWorkspaceRepository(db),
     principals: new DrizzlePrincipalRepository(db),
@@ -24,6 +23,6 @@ export function createRepositories(db: BetterSQLite3Database<typeof schema>) {
   };
 }
 
-export function createTransactionManager(db: BetterSQLite3Database<typeof schema>) {
+export function createTransactionManager(db: MostlyDb) {
   return new DrizzleTransactionManager(db);
 }

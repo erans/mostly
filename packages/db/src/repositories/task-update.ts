@@ -1,5 +1,5 @@
 import { eq, and, gt, or, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { MostlyDb } from '../types.js';
 import type {
   TaskUpdateRepository,
   TaskUpdateCreateData,
@@ -8,7 +8,6 @@ import type {
 } from '@mostly/core';
 import type { TaskUpdate } from '@mostly/types';
 import { taskUpdates, agentActionContexts } from '../schema/index.js';
-import type * as schema from '../schema/index.js';
 
 type DbRow = typeof taskUpdates.$inferSelect;
 
@@ -25,7 +24,7 @@ function toEntity(row: DbRow): TaskUpdate {
 }
 
 export class DrizzleTaskUpdateRepository implements TaskUpdateRepository {
-  constructor(private db: BetterSQLite3Database<typeof schema>) {}
+  constructor(private db: MostlyDb) {}
 
   async list(taskId: string, cursor?: string, limit: number = 50): Promise<PaginatedResult<TaskUpdate>> {
     const conditions = [eq(taskUpdates.task_id, taskId)];
@@ -42,7 +41,7 @@ export class DrizzleTaskUpdateRepository implements TaskUpdateRepository {
       );
     }
 
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(taskUpdates)
       .where(and(...conditions))
@@ -60,7 +59,7 @@ export class DrizzleTaskUpdateRepository implements TaskUpdateRepository {
   }
 
   async create(data: TaskUpdateCreateData): Promise<TaskUpdate> {
-    this.db.insert(taskUpdates).values({
+    await this.db.insert(taskUpdates).values({
       id: data.id,
       task_id: data.task_id,
       kind: data.kind,
@@ -85,7 +84,7 @@ export class DrizzleTaskUpdateRepository implements TaskUpdateRepository {
     data: TaskUpdateCreateData,
     contexts: AgentActionContextCreateData[],
   ): Promise<TaskUpdate> {
-    this.db.insert(taskUpdates).values({
+    await this.db.insert(taskUpdates).values({
       id: data.id,
       task_id: data.task_id,
       kind: data.kind,
@@ -96,7 +95,7 @@ export class DrizzleTaskUpdateRepository implements TaskUpdateRepository {
     }).run();
 
     for (const ctx of contexts) {
-      this.db.insert(agentActionContexts).values({
+      await this.db.insert(agentActionContexts).values({
         id: ctx.id,
         task_update_id: ctx.task_update_id,
         principal_id: ctx.principal_id,

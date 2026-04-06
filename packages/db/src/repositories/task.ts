@@ -1,10 +1,9 @@
 import { eq, and, gt, lte, isNotNull, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { MostlyDb } from '../types.js';
 import type { TaskRepository, TaskCreateData, TaskUpdateData, TaskListFilters, PaginatedResult } from '@mostly/core';
 import type { Task } from '@mostly/types';
 import { NotFoundError, ConflictError } from '@mostly/types';
 import { tasks, taskKeySequences } from '../schema/index.js';
-import type * as schema from '../schema/index.js';
 
 type DbRow = typeof tasks.$inferSelect;
 
@@ -32,15 +31,15 @@ function toEntity(row: DbRow): Task {
 }
 
 export class DrizzleTaskRepository implements TaskRepository {
-  constructor(private db: BetterSQLite3Database<typeof schema>) {}
+  constructor(private db: MostlyDb) {}
 
   async findById(id: string): Promise<Task | null> {
-    const rows = this.db.select().from(tasks).where(eq(tasks.id, id)).all();
+    const rows = await this.db.select().from(tasks).where(eq(tasks.id, id)).all();
     return rows[0] ? toEntity(rows[0]) : null;
   }
 
   async findByKey(workspaceId: string, key: string): Promise<Task | null> {
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(tasks)
       .where(and(eq(tasks.workspace_id, workspaceId), eq(tasks.key, key)))
@@ -63,7 +62,7 @@ export class DrizzleTaskRepository implements TaskRepository {
 
     if (cursor) conditions.push(gt(tasks.id, cursor));
 
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(tasks)
       .where(and(...conditions))
@@ -80,7 +79,7 @@ export class DrizzleTaskRepository implements TaskRepository {
   }
 
   async create(data: TaskCreateData): Promise<Task> {
-    this.db.insert(tasks).values({
+    await this.db.insert(tasks).values({
       id: data.id,
       workspace_id: data.workspace_id,
       project_id: data.project_id,
@@ -141,7 +140,7 @@ export class DrizzleTaskRepository implements TaskRepository {
     if (data.claim_expires_at !== undefined) updateValues.claim_expires_at = data.claim_expires_at;
     if (data.resolved_at !== undefined) updateValues.resolved_at = data.resolved_at;
 
-    const result = this.db
+    const result = await this.db
       .update(tasks)
       .set(updateValues)
       .where(and(eq(tasks.id, id), eq(tasks.version, expectedVersion)))
@@ -161,7 +160,7 @@ export class DrizzleTaskRepository implements TaskRepository {
   async nextKeyNumber(workspaceId: string, prefix: string): Promise<number> {
     // Single atomic statement: upsert and return the allocated number.
     // SQLite 3.35+ supports RETURNING on INSERT ... ON CONFLICT.
-    const rows = this.db.all<{ next_number: number }>(sql`
+    const rows = await this.db.all<{ next_number: number }>(sql`
       INSERT INTO task_key_sequence (workspace_id, prefix, next_number)
       VALUES (${workspaceId}, ${prefix}, 2)
       ON CONFLICT (workspace_id, prefix)
@@ -174,7 +173,7 @@ export class DrizzleTaskRepository implements TaskRepository {
 
   async findWithExpiredClaims(workspaceId: string): Promise<Task[]> {
     const now = new Date().toISOString();
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(tasks)
       .where(

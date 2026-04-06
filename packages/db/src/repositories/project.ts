@@ -1,10 +1,9 @@
 import { eq, and, gt } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { MostlyDb } from '../types.js';
 import type { ProjectRepository, ProjectCreateData, ProjectPatchData, PaginatedResult } from '@mostly/core';
 import type { Project } from '@mostly/types';
 import { NotFoundError } from '@mostly/types';
 import { projects } from '../schema/index.js';
-import type * as schema from '../schema/index.js';
 
 type DbRow = typeof projects.$inferSelect;
 
@@ -24,15 +23,15 @@ function toEntity(row: DbRow): Project {
 }
 
 export class DrizzleProjectRepository implements ProjectRepository {
-  constructor(private db: BetterSQLite3Database<typeof schema>) {}
+  constructor(private db: MostlyDb) {}
 
   async findById(id: string): Promise<Project | null> {
-    const rows = this.db.select().from(projects).where(eq(projects.id, id)).all();
+    const rows = await this.db.select().from(projects).where(eq(projects.id, id)).all();
     return rows[0] ? toEntity(rows[0]) : null;
   }
 
   async findByKey(workspaceId: string, key: string): Promise<Project | null> {
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(projects)
       .where(and(eq(projects.workspace_id, workspaceId), eq(projects.key, key)))
@@ -46,7 +45,7 @@ export class DrizzleProjectRepository implements ProjectRepository {
       conditions.push(gt(projects.id, cursor));
     }
 
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(projects)
       .where(and(...conditions))
@@ -63,7 +62,7 @@ export class DrizzleProjectRepository implements ProjectRepository {
   }
 
   async create(data: ProjectCreateData): Promise<Project> {
-    this.db.insert(projects).values({
+    await this.db.insert(projects).values({
       id: data.id,
       workspace_id: data.workspace_id,
       key: data.key,
@@ -102,7 +101,7 @@ export class DrizzleProjectRepository implements ProjectRepository {
     if (data.description !== undefined) updateValues.description = data.description;
     if (data.is_archived !== undefined) updateValues.is_archived = data.is_archived;
 
-    this.db.update(projects).set(updateValues).where(eq(projects.id, id)).run();
+    await this.db.update(projects).set(updateValues).where(eq(projects.id, id)).run();
 
     const updated = await this.findById(id);
     return updated!;

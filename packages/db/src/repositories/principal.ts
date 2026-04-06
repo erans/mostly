@@ -1,10 +1,9 @@
 import { eq, and, gt } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { MostlyDb } from '../types.js';
 import type { PrincipalRepository, PrincipalCreateData, PrincipalPatchData, PaginatedResult } from '@mostly/core';
 import type { Principal } from '@mostly/types';
 import { NotFoundError } from '@mostly/types';
 import { principals } from '../schema/index.js';
-import type * as schema from '../schema/index.js';
 
 type DbRow = typeof principals.$inferSelect;
 
@@ -23,15 +22,15 @@ function toEntity(row: DbRow): Principal {
 }
 
 export class DrizzlePrincipalRepository implements PrincipalRepository {
-  constructor(private db: BetterSQLite3Database<typeof schema>) {}
+  constructor(private db: MostlyDb) {}
 
   async findById(id: string): Promise<Principal | null> {
-    const rows = this.db.select().from(principals).where(eq(principals.id, id)).all();
+    const rows = await this.db.select().from(principals).where(eq(principals.id, id)).all();
     return rows[0] ? toEntity(rows[0]) : null;
   }
 
   async findByHandle(workspaceId: string, handle: string): Promise<Principal | null> {
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(principals)
       .where(and(eq(principals.workspace_id, workspaceId), eq(principals.handle, handle)))
@@ -45,7 +44,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       conditions.push(gt(principals.id, cursor));
     }
 
-    const rows = this.db
+    const rows = await this.db
       .select()
       .from(principals)
       .where(and(...conditions))
@@ -64,7 +63,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
   async create(data: PrincipalCreateData): Promise<Principal> {
     const metadataStr = data.metadata_json ? JSON.stringify(data.metadata_json) : null;
 
-    this.db.insert(principals).values({
+    await this.db.insert(principals).values({
       id: data.id,
       workspace_id: data.workspace_id,
       handle: data.handle,
@@ -101,7 +100,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
     }
     if (data.is_active !== undefined) updateValues.is_active = data.is_active;
 
-    this.db.update(principals).set(updateValues).where(eq(principals.id, id)).run();
+    await this.db.update(principals).set(updateValues).where(eq(principals.id, id)).run();
 
     const updated = await this.findById(id);
     return updated!;
