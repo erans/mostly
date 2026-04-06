@@ -11,7 +11,7 @@ describe('Concurrency', () => {
     })).data.id;
   });
 
-  it('optimistic locking: one succeeds, one gets 409', async () => {
+  it('optimistic locking: one succeeds, one gets 412', async () => {
     const task = (await client.post('/v0/tasks', {
       title: 'Locking test', type: 'feature', project_id: projectId, actor_handle: actor,
     })).data;

@@ -37,7 +37,7 @@ describe('CLI: error handling', () => {
       execFile('node', [CLI_PATH, 'task', 'list'], {
         env: {
           ...process.env,
-          MOSTLY_SERVER_URL: process.env.SERVER_URL ?? 'http://localhost:6080',
+          MOSTLY_SERVER_URL: process.env.MOSTLY_SERVER_URL ?? process.env.SERVER_URL ?? 'http://localhost:6080',
           MOSTLY_TOKEN: 'wrong-token',
           MOSTLY_ACTOR: 'e2e-agent',
         },

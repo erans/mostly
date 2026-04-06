@@ -279,10 +279,10 @@ export function taskCommand(): Command {
       }
     });
 
-  // cancel (transition: -> cancelled)
+  // cancel (transition: -> canceled)
   cmd
     .command('cancel <id>')
-    .description('Transition a task to cancelled')
+    .description('Transition a task to canceled')
     .option('--resolution <res>', 'Resolution (default: wont_do)')
     .option('--json', 'Output JSON')
     .option('--quiet', 'Minimal output')
