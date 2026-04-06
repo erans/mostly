@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 import { createLocalDb, runMigrations, createRepositories } from '@mostly/db';
 import { configExists, getConfigDir, getConfigPath, getDbPath } from '../config.js';
 import { getMigrationsDir } from '../migrations.js';
-import { ulid } from 'ulid';
+import { generateId, ID_PREFIXES } from '@mostly/types';
 
 export function initCommand(): Command {
   return new Command('init')
@@ -59,7 +59,7 @@ export function initCommand(): Command {
       } catch {
         const now = new Date().toISOString();
         workspace = await repos.workspaces.create({
-          id: ulid(),
+          id: generateId(ID_PREFIXES.workspace),
           slug: 'default',
           name: 'Default Workspace',
           created_at: now,

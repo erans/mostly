@@ -4,9 +4,8 @@ import { homedir } from 'os';
 import { serve } from '@hono/node-server';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
 import { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
-import { NotFoundError } from '@mostly/types';
+import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
 import { createApp } from './app.js';
-import { ulid } from 'ulid';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -62,7 +61,7 @@ async function main() {
     if (!(err instanceof NotFoundError)) throw err;
     const now = new Date().toISOString();
     workspace = await repos.workspaces.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.workspace),
       slug: 'default',
       name: 'Default Workspace',
       created_at: now,

@@ -17,8 +17,7 @@
     "@mostly/server": "workspace:*",
     "@mostly/db": "workspace:*",
     "@hono/node-server": "^1.14.0",
-    "commander": "^13.1.0",
-    "ulid": "^2.3.0"
+    "commander": "^13.1.0"
   },
   "tsup": {
     "entry": ["src/index.ts"],
