@@ -5,7 +5,7 @@ import { PrincipalService, ProjectService, TaskService, MaintenanceService } fro
 import { createApp } from '@mostly/server';
 import { configExists, loadConfig, getDbPath } from '../config.js';
 import { getMigrationsDir } from '../migrations.js';
-import { ulid } from 'ulid';
+import { generateId, ID_PREFIXES } from '@mostly/types';
 
 const DEFAULT_PORT = 6080;
 
@@ -40,7 +40,7 @@ export function serveCommand(): Command {
       } catch {
         const now = new Date().toISOString();
         workspace = await repos.workspaces.create({
-          id: ulid(),
+          id: generateId(ID_PREFIXES.workspace),
           slug: 'default',
           name: 'Default Workspace',
           created_at: now,

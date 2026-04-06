@@ -1,4 +1,4 @@
-import { ulid } from 'ulid';
+import { generateId, ID_PREFIXES } from '@mostly/types';
 import type { TaskRepository, TaskUpdateRepository, TransactionManager } from '../repositories/index.js';
 import { statusAfterClaimRelease } from '../claims.js';
 
@@ -30,7 +30,7 @@ export class MaintenanceService {
         }, task.version);
 
         await updateRepo.create({
-          id: ulid(),
+          id: generateId(ID_PREFIXES.taskUpdate),
           task_id: task.id,
           kind: 'system',
           body: `Claim expired and cleared (was held by ${task.claimed_by_id})`,

@@ -156,19 +156,19 @@ describe('DrizzleProjectRepository', () => {
   });
 
   it('list supports cursor pagination', async () => {
-    await repo.create({ id: '01PJ0001', workspace_id: wsId, key: 'A', name: 'A', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: now, updated_at: now });
-    await repo.create({ id: '01PJ0002', workspace_id: wsId, key: 'B', name: 'B', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: now, updated_at: now });
-    await repo.create({ id: '01PJ0003', workspace_id: wsId, key: 'C', name: 'C', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: now, updated_at: now });
+    await repo.create({ id: 'proj_aaa0001', workspace_id: wsId, key: 'A', name: 'A', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: '2025-01-01T00:00:01.000Z', updated_at: '2025-01-01T00:00:01.000Z' });
+    await repo.create({ id: 'proj_aaa0002', workspace_id: wsId, key: 'B', name: 'B', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: '2025-01-01T00:00:02.000Z', updated_at: '2025-01-01T00:00:02.000Z' });
+    await repo.create({ id: 'proj_aaa0003', workspace_id: wsId, key: 'C', name: 'C', description: null, is_archived: false, created_by_id: actorId, updated_by_id: actorId, created_at: '2025-01-01T00:00:03.000Z', updated_at: '2025-01-01T00:00:03.000Z' });
 
     const page1 = await repo.list(wsId, undefined, 2);
     expect(page1.items).toHaveLength(2);
-    expect(page1.next_cursor).toBe('01PJ0002');
-    expect(page1.items[0].id).toBe('01PJ0001');
-    expect(page1.items[1].id).toBe('01PJ0002');
+    expect(page1.next_cursor).toBe('2025-01-01T00:00:02.000Z|proj_aaa0002');
+    expect(page1.items[0].id).toBe('proj_aaa0001');
+    expect(page1.items[1].id).toBe('proj_aaa0002');
 
     const page2 = await repo.list(wsId, page1.next_cursor!, 2);
     expect(page2.items).toHaveLength(1);
-    expect(page2.items[0].id).toBe('01PJ0003');
+    expect(page2.items[0].id).toBe('proj_aaa0003');
     expect(page2.next_cursor).toBeNull();
   });
 

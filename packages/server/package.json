@@ -28,8 +28,7 @@
     "@mostly/core": "workspace:*",
     "@mostly/db": "workspace:*",
     "hono": "^4.7.0",
-    "@hono/node-server": "^1.14.0",
-    "ulid": "^2.3.0"
+    "@hono/node-server": "^1.14.0"
   },
   "tsup": {
     "entry": ["src/index.ts", "src/serve.ts", "src/worker.ts"],

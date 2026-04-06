@@ -1,5 +1,4 @@
-import { ulid } from 'ulid';
-import { NotFoundError, PreconditionFailedError } from '@mostly/types';
+import { generateId, ID_PREFIXES, NotFoundError, PreconditionFailedError } from '@mostly/types';
 import type { Task, TaskUpdate } from '@mostly/types';
 import type {
   TaskRepository, TaskUpdateRepository, ProjectRepository,
@@ -54,7 +53,7 @@ export class TaskService {
       const now = new Date().toISOString();
 
       return ctx.tasks.create({
-        id: ulid(),
+        id: generateId(ID_PREFIXES.task),
         workspace_id: workspaceId,
         project_id: projectId,
         key,
@@ -257,7 +256,7 @@ export class TaskService {
     if (!task) throw new NotFoundError('task', taskId);
 
     return this.taskUpdates.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.taskUpdate),
       task_id: taskId,
       kind: input.kind,
       body: input.body,
@@ -284,7 +283,7 @@ export class TaskService {
 
   private async emitSystemUpdate(taskId: string, actorId: string, body: string): Promise<void> {
     await this.taskUpdates.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.taskUpdate),
       task_id: taskId,
       kind: 'system',
       body,
@@ -296,7 +295,7 @@ export class TaskService {
 
   private async emitClaimUpdate(taskId: string, actorId: string, body: string): Promise<void> {
     await this.taskUpdates.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.taskUpdate),
       task_id: taskId,
       kind: 'claim',
       body,
