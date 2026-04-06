@@ -10,8 +10,9 @@
     "clean": "pnpm -r --if-present run clean"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "miniflare": "^4.20260401.0",
     "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
     "vitest": "^3.1.0"
   },
   "pnpm": {
