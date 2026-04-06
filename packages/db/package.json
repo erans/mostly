@@ -1,0 +1,38 @@
+{
+  "name": "@mostly/db",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@mostly/types": "workspace:*",
+    "@mostly/core": "workspace:*",
+    "drizzle-orm": "^0.39.0",
+    "better-sqlite3": "^11.8.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0",
+    "@types/better-sqlite3": "^7.6.0"
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm"],
+    "dts": true,
+    "clean": true,
+    "sourcemap": true
+  }
+}
