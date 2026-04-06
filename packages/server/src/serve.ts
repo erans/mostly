@@ -111,19 +111,25 @@ async function main() {
       console.log(`Bootstrap principal '${handle}' already exists`);
     } catch (err) {
       if (!(err instanceof NotFoundError)) throw err;
-      const now = new Date().toISOString();
-      await repos.principals.create({
-        id: generateId(ID_PREFIXES.principal),
-        workspace_id: workspace.id,
-        handle,
-        kind: 'agent',
-        display_name: `Bootstrap Agent (${handle})`,
-        metadata_json: null,
-        is_active: true,
-        created_at: now,
-        updated_at: now,
-      });
-      console.log(`Created bootstrap principal: ${handle}`);
+      try {
+        const now = new Date().toISOString();
+        await repos.principals.create({
+          id: generateId(ID_PREFIXES.principal),
+          workspace_id: workspace.id,
+          handle,
+          kind: 'agent',
+          display_name: `Bootstrap Agent (${handle})`,
+          metadata_json: null,
+          is_active: true,
+          created_at: now,
+          updated_at: now,
+        });
+        console.log(`Created bootstrap principal: ${handle}`);
+      } catch {
+        // Ignore unique constraint errors from concurrent startup race
+        const existing = await principalService.getByHandle(workspace.id, handle);
+        console.log(`Bootstrap principal '${handle}' already exists (concurrent create)`);
+      }
     }
   }
 
