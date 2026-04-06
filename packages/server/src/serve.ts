@@ -23,18 +23,33 @@ interface MostlyConfig {
   server_url?: string;
 }
 
-function loadConfig(): MostlyConfig {
-  if (process.env.MOSTLY_TOKEN) {
-    return {
-      token: process.env.MOSTLY_TOKEN,
-      port: process.env.MOSTLY_PORT ? parseInt(process.env.MOSTLY_PORT, 10) : DEFAULT_PORT,
-    };
-  }
-  if (!existsSync(CONFIG_PATH)) {
-    console.error(`Config not found at ${CONFIG_PATH}. Run 'mostly init' first.`);
+function parsePort(value: string): number {
+  const port = parseInt(value, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error(`Invalid port: ${value}. Must be an integer between 1 and 65535.`);
     process.exit(1);
   }
-  return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+  return port;
+}
+
+function loadConfig(): MostlyConfig {
+  // Load base config from file (if it exists)
+  const fileConfig: Partial<MostlyConfig> = existsSync(CONFIG_PATH)
+    ? JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
+    : {};
+
+  // Env vars override file config
+  const token = process.env.MOSTLY_TOKEN ?? fileConfig.token;
+  if (!token) {
+    console.error(`No token configured. Set MOSTLY_TOKEN env var or run 'mostly init'.`);
+    process.exit(1);
+  }
+
+  const port = process.env.MOSTLY_PORT
+    ? parsePort(process.env.MOSTLY_PORT)
+    : fileConfig.port ?? DEFAULT_PORT;
+
+  return { token, port, server_url: fileConfig.server_url };
 }
 
 async function main() {
