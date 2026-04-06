@@ -9,22 +9,22 @@ interface MostlyConfig {
 }
 
 function loadConfig(): MostlyConfig {
-  // Env vars take precedence
-  const serverUrl = process.env.MOSTLY_SERVER_URL;
-  const token = process.env.MOSTLY_TOKEN;
-  if (serverUrl && token) {
-    return {
-      server_url: serverUrl,
-      token,
-      default_actor: process.env.MOSTLY_ACTOR,
-    };
-  }
-
+  // Load file config as base (if it exists)
   const configPath = join(homedir(), '.mostly', 'config');
-  if (!existsSync(configPath)) {
+  const fileConfig: Partial<MostlyConfig> = existsSync(configPath)
+    ? JSON.parse(readFileSync(configPath, 'utf-8'))
+    : {};
+
+  // Env vars override file config per-field
+  const server_url = process.env.MOSTLY_SERVER_URL ?? fileConfig.server_url;
+  const token = process.env.MOSTLY_TOKEN ?? fileConfig.token;
+  const default_actor = process.env.MOSTLY_ACTOR ?? fileConfig.default_actor;
+
+  if (!server_url || !token) {
     throw new Error('Config not found. Run "mostly init" first, or set MOSTLY_SERVER_URL and MOSTLY_TOKEN env vars.');
   }
-  return JSON.parse(readFileSync(configPath, 'utf-8'));
+
+  return { server_url, token, default_actor };
 }
 
 export class MostlyMcpClient {
