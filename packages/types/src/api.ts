@@ -68,7 +68,14 @@ export const TransitionTaskRequest = z.object({
   to_status: z.enum(['open', 'claimed', 'in_progress', 'blocked', 'closed', 'canceled']),
   resolution: z.enum(['completed', 'duplicate', 'invalid', 'wont_do', 'deferred']).nullable().optional(),
   expected_version: z.number().int().positive(),
-}).merge(ActorFields);
+}).merge(ActorFields).refine(
+  (data) => {
+    const terminal = data.to_status === 'closed' || data.to_status === 'canceled';
+    if (data.resolution && !terminal) return false;
+    return true;
+  },
+  { message: 'resolution can only be set when transitioning to closed or canceled', path: ['resolution'] },
+);
 export type TransitionTaskRequest = z.infer<typeof TransitionTaskRequest>;
 
 // --- Claims ---

@@ -47,7 +47,7 @@ export function createTestApp() {
   const principalService = new PrincipalService(repos.principals);
   const projectService = new ProjectService(repos.projects);
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
-  const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates);
+  const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
 
   const app = createApp({
     workspaceId: TEST_WORKSPACE_ID,

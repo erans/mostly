@@ -159,35 +159,17 @@ export class DrizzleTaskRepository implements TaskRepository {
   }
 
   async nextKeyNumber(workspaceId: string, prefix: string): Promise<number> {
-    // Upsert + read. Atomicity is provided by the outer transaction from TaskService.create().
-    // For a single-connection SQLite (local-first), no interleaving is possible.
-    this.db
-      .insert(taskKeySequences)
-      .values({
-        workspace_id: workspaceId,
-        prefix,
-        next_number: 2,
-      })
-      .onConflictDoUpdate({
-        target: [taskKeySequences.workspace_id, taskKeySequences.prefix],
-        set: {
-          next_number: sql`${taskKeySequences.next_number} + 1`,
-        },
-      })
-      .run();
+    // Single atomic statement: upsert and return the allocated number.
+    // SQLite 3.35+ supports RETURNING on INSERT ... ON CONFLICT.
+    const rows = this.db.all<{ next_number: number }>(sql`
+      INSERT INTO task_key_sequence (workspace_id, prefix, next_number)
+      VALUES (${workspaceId}, ${prefix}, 2)
+      ON CONFLICT (workspace_id, prefix)
+      DO UPDATE SET next_number = next_number + 1
+      RETURNING next_number - 1 AS next_number
+    `);
 
-    const rows = this.db
-      .select()
-      .from(taskKeySequences)
-      .where(
-        and(
-          eq(taskKeySequences.workspace_id, workspaceId),
-          eq(taskKeySequences.prefix, prefix),
-        ),
-      )
-      .all();
-
-    return rows[0].next_number - 1;
+    return rows[0].next_number;
   }
 
   async findWithExpiredClaims(workspaceId: string): Promise<Task[]> {

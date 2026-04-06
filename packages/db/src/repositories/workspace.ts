@@ -32,7 +32,7 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
   }
 
   async getDefault(): Promise<Workspace> {
-    const rows = this.db.select().from(workspaces).limit(1).all();
+    const rows = this.db.select().from(workspaces).where(eq(workspaces.slug, 'default')).limit(1).all();
     if (!rows[0]) throw new NotFoundError('workspace', 'default');
     return toEntity(rows[0]);
   }
