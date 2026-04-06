@@ -12,9 +12,9 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const MOSTLY_DIR = join(homedir(), '.mostly');
+const MOSTLY_DIR = process.env.MOSTLY_DIR ?? join(homedir(), '.mostly');
 const CONFIG_PATH = join(MOSTLY_DIR, 'config');
-const DB_PATH = join(MOSTLY_DIR, 'mostly.db');
+const DB_PATH = process.env.MOSTLY_DB_PATH ?? join(MOSTLY_DIR, 'mostly.db');
 const DEFAULT_PORT = 6080;
 
 interface MostlyConfig {
@@ -24,6 +24,12 @@ interface MostlyConfig {
 }
 
 function loadConfig(): MostlyConfig {
+  if (process.env.MOSTLY_TOKEN) {
+    return {
+      token: process.env.MOSTLY_TOKEN,
+      port: process.env.MOSTLY_PORT ? parseInt(process.env.MOSTLY_PORT, 10) : DEFAULT_PORT,
+    };
+  }
   if (!existsSync(CONFIG_PATH)) {
     console.error(`Config not found at ${CONFIG_PATH}. Run 'mostly init' first.`);
     process.exit(1);
