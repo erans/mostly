@@ -7,7 +7,7 @@ import { DrizzleProjectRepository } from './project.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
 
-export class DrizzleTransactionManager implements TransactionManager {
+export class DrizzleLocalTransactionManager implements TransactionManager {
   constructor(private db: MostlyDb) {}
 
   async withTransaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T> {

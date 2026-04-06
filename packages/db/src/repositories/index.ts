@@ -3,7 +3,7 @@ export { DrizzlePrincipalRepository } from './principal.js';
 export { DrizzleProjectRepository } from './project.js';
 export { DrizzleTaskRepository } from './task.js';
 export { DrizzleTaskUpdateRepository } from './task-update.js';
-export { DrizzleTransactionManager } from './transaction.js';
+export { DrizzleLocalTransactionManager } from './transaction.js';
 
 import type { MostlyDb } from '../types.js';
 import { DrizzleWorkspaceRepository } from './workspace.js';
@@ -11,7 +11,7 @@ import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
-import { DrizzleTransactionManager } from './transaction.js';
+import { DrizzleLocalTransactionManager } from './transaction.js';
 
 export function createRepositories(db: MostlyDb) {
   return {
@@ -24,5 +24,5 @@ export function createRepositories(db: MostlyDb) {
 }
 
 export function createTransactionManager(db: MostlyDb) {
-  return new DrizzleTransactionManager(db);
+  return new DrizzleLocalTransactionManager(db);
 }

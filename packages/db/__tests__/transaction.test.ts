@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createTestDb } from './helpers';
-import { DrizzleTransactionManager } from '../src/repositories/transaction';
+import { DrizzleLocalTransactionManager } from '../src/repositories/transaction';
 import { DrizzleWorkspaceRepository } from '../src/repositories/workspace';
 import { DrizzleTaskRepository } from '../src/repositories/task';
 import { DrizzlePrincipalRepository } from '../src/repositories/principal';
 
-describe('DrizzleTransactionManager', () => {
+describe('DrizzleLocalTransactionManager', () => {
   const now = '2025-01-01T00:00:00.000Z';
   const wsId = '01WS0001';
   const principalId = '01PR0001';
@@ -54,7 +54,7 @@ describe('DrizzleTransactionManager', () => {
   it('operations in a transaction all succeed', async () => {
     const db = createTestDb();
     await seedWorkspaceAndPrincipal(db);
-    const txManager = new DrizzleTransactionManager(db);
+    const txManager = new DrizzleLocalTransactionManager(db);
     const taskRepo = new DrizzleTaskRepository(db);
 
     await txManager.withTransaction(async (ctx) => {
@@ -71,7 +71,7 @@ describe('DrizzleTransactionManager', () => {
   it('transaction-scoped repos work correctly', async () => {
     const db = createTestDb();
     await seedWorkspaceAndPrincipal(db);
-    const txManager = new DrizzleTransactionManager(db);
+    const txManager = new DrizzleLocalTransactionManager(db);
 
     let taskFromTx: Awaited<ReturnType<typeof txManager.withTransaction>> | null = null;
 
@@ -87,7 +87,7 @@ describe('DrizzleTransactionManager', () => {
   it('rolls back changes on error', async () => {
     const db = createTestDb();
     await seedWorkspaceAndPrincipal(db);
-    const txManager = new DrizzleTransactionManager(db);
+    const txManager = new DrizzleLocalTransactionManager(db);
     const taskRepo = new DrizzleTaskRepository(db);
 
     await expect(
@@ -104,7 +104,7 @@ describe('DrizzleTransactionManager', () => {
   it('withTransaction returns the value from the callback', async () => {
     const db = createTestDb();
     await seedWorkspaceAndPrincipal(db);
-    const txManager = new DrizzleTransactionManager(db);
+    const txManager = new DrizzleLocalTransactionManager(db);
 
     const result = await txManager.withTransaction(async (ctx) => {
       const ws = await ctx.workspaces.findById(wsId);
