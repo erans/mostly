@@ -2,16 +2,22 @@
   "name": "mostlylinear",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.28.0",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r --if-present run test",
     "test:e2e": "vitest run --config e2e/vitest.config.ts",
     "lint": "pnpm -r --if-present run lint",
-    "clean": "pnpm -r --if-present run clean"
+    "clean": "pnpm -r --if-present run clean",
+    "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --exit-code-from test-runner",
+    "test:e2e:docker:build": "docker compose -f docker-compose.e2e.yml build",
+    "test:e2e:docker:logs": "docker compose -f docker-compose.e2e.yml logs server",
+    "test:e2e:docker:down": "docker compose -f docker-compose.e2e.yml down -v"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
+    "miniflare": "^4.20260401.0",
     "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
     "vitest": "^3.1.0"
   },
   "pnpm": {

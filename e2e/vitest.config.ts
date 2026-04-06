@@ -12,6 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ['e2e/**/*.test.ts'],
+    exclude: ['e2e/docker/**'],
     root: resolve(__dirname, '..'),
   },
 });

@@ -30,6 +30,9 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   // Error handler (outermost — catches DomainError and maps to HTTP status)
   app.onError(errorHandler);
 
+  // Health check — no auth required
+  app.get('/healthz', (c) => c.json({ status: 'ok' }));
+
   // Inject services and workspace into context
   app.use('*', async (c, next) => {
     c.set('workspaceId', deps.workspaceId);
