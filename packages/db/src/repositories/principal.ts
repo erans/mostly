@@ -2,7 +2,7 @@ import { eq, and, gt, or } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
 import type { PrincipalRepository, PrincipalCreateData, PrincipalPatchData, PaginatedResult } from '@mostly/core';
 import type { Principal } from '@mostly/types';
-import { NotFoundError } from '@mostly/types';
+import { NotFoundError, InvalidArgumentError } from '@mostly/types';
 import { principals } from '../schema/index.js';
 
 type DbRow = typeof principals.$inferSelect;
@@ -42,6 +42,9 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
     const conditions = [eq(principals.workspace_id, workspaceId)];
     if (cursor) {
       const sepIdx = cursor.lastIndexOf('|');
+      if (sepIdx <= 0 || sepIdx === cursor.length - 1) {
+        throw new InvalidArgumentError('invalid cursor format');
+      }
       const cursorTime = cursor.slice(0, sepIdx);
       const cursorId = cursor.slice(sepIdx + 1);
       conditions.push(

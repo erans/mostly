@@ -2,7 +2,7 @@ import { eq, and, gt, lte, isNotNull, sql, or } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
 import type { TaskRepository, TaskCreateData, TaskUpdateData, TaskListFilters, PaginatedResult } from '@mostly/core';
 import type { Task } from '@mostly/types';
-import { NotFoundError, ConflictError } from '@mostly/types';
+import { NotFoundError, ConflictError, InvalidArgumentError } from '@mostly/types';
 import { tasks, taskKeySequences } from '../schema/index.js';
 
 type DbRow = typeof tasks.$inferSelect;
@@ -62,6 +62,9 @@ export class DrizzleTaskRepository implements TaskRepository {
 
     if (cursor) {
       const sepIdx = cursor.lastIndexOf('|');
+      if (sepIdx <= 0 || sepIdx === cursor.length - 1) {
+        throw new InvalidArgumentError('invalid cursor format');
+      }
       const cursorTime = cursor.slice(0, sepIdx);
       const cursorId = cursor.slice(sepIdx + 1);
       conditions.push(

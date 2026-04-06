@@ -45,4 +45,9 @@ describe('parseIdPrefix', () => {
   it('returns null for IDs with empty prefix', () => {
     expect(parseIdPrefix('_abc')).toBeNull();
   });
+
+  it('returns null for unknown prefixes', () => {
+    expect(parseIdPrefix('foo_12345678')).toBeNull();
+    expect(parseIdPrefix('unknown_abc')).toBeNull();
+  });
 });

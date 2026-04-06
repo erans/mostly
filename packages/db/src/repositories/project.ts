@@ -2,7 +2,7 @@ import { eq, and, gt, or } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
 import type { ProjectRepository, ProjectCreateData, ProjectPatchData, PaginatedResult } from '@mostly/core';
 import type { Project } from '@mostly/types';
-import { NotFoundError } from '@mostly/types';
+import { NotFoundError, InvalidArgumentError } from '@mostly/types';
 import { projects } from '../schema/index.js';
 
 type DbRow = typeof projects.$inferSelect;
@@ -43,6 +43,9 @@ export class DrizzleProjectRepository implements ProjectRepository {
     const conditions = [eq(projects.workspace_id, workspaceId)];
     if (cursor) {
       const sepIdx = cursor.lastIndexOf('|');
+      if (sepIdx <= 0 || sepIdx === cursor.length - 1) {
+        throw new InvalidArgumentError('invalid cursor format');
+      }
       const cursorTime = cursor.slice(0, sepIdx);
       const cursorId = cursor.slice(sepIdx + 1);
       conditions.push(
