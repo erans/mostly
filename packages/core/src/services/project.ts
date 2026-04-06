@@ -1,5 +1,4 @@
-import { ulid } from 'ulid';
-import { NotFoundError, InvalidArgumentError } from '@mostly/types';
+import { generateId, ID_PREFIXES, NotFoundError, InvalidArgumentError } from '@mostly/types';
 import type { Project } from '@mostly/types';
 import type { ProjectRepository, PaginatedResult } from '../repositories/index.js';
 
@@ -19,7 +18,7 @@ export class ProjectService {
     }
     const now = new Date().toISOString();
     return this.projects.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.project),
       workspace_id: workspaceId,
       key: input.key,
       name: input.name,

@@ -1,5 +1,4 @@
-import { ulid } from 'ulid';
-import { NotFoundError, InvalidArgumentError } from '@mostly/types';
+import { generateId, ID_PREFIXES, NotFoundError, InvalidArgumentError } from '@mostly/types';
 import type { Principal } from '@mostly/types';
 import type { PrincipalRepository, PaginatedResult } from '../repositories/index.js';
 
@@ -20,7 +19,7 @@ export class PrincipalService {
     }
     const now = new Date().toISOString();
     return this.principals.create({
-      id: ulid(),
+      id: generateId(ID_PREFIXES.principal),
       workspace_id: workspaceId,
       handle: input.handle,
       kind: input.kind,

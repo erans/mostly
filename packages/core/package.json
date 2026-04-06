@@ -21,8 +21,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@mostly/types": "workspace:*",
-    "ulid": "^2.3.0"
+    "@mostly/types": "workspace:*"
   },
   "tsup": {
     "entry": ["src/index.ts", "src/test-utils/index.ts"],
