@@ -9,9 +9,20 @@ interface MostlyConfig {
 }
 
 function loadConfig(): MostlyConfig {
+  // Env vars take precedence
+  const serverUrl = process.env.MOSTLY_SERVER_URL;
+  const token = process.env.MOSTLY_TOKEN;
+  if (serverUrl && token) {
+    return {
+      server_url: serverUrl,
+      token,
+      default_actor: process.env.MOSTLY_ACTOR,
+    };
+  }
+
   const configPath = join(homedir(), '.mostly', 'config');
   if (!existsSync(configPath)) {
-    throw new Error('Config not found. Run "mostly init" first.');
+    throw new Error('Config not found. Run "mostly init" first, or set MOSTLY_SERVER_URL and MOSTLY_TOKEN env vars.');
   }
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
