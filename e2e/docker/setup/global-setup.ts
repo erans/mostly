@@ -1,5 +1,5 @@
 export async function setup() {
-  const serverUrl = process.env.SERVER_URL ?? 'http://localhost:6080';
+  const serverUrl = process.env.MOSTLY_SERVER_URL ?? process.env.SERVER_URL ?? 'http://localhost:6080';
 
   // Wait for server to be healthy
   for (let i = 0; i < 30; i++) {
