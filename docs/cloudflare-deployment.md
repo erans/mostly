@@ -2,6 +2,8 @@
 
 This guide walks through deploying the Mostly task tracker API to Cloudflare Workers with D1 as the database backend.
 
+> **Note:** D1 does not support multi-statement transactions (BEGIN/COMMIT/ROLLBACK). Multi-step write operations (e.g., task creation with key allocation) use sequential statements rather than atomic transactions. D1's single-writer guarantee prevents concurrent conflicts, and key operations like `nextKeyNumber` use single atomic SQL statements. For most workloads this is fine, but be aware that a mid-operation failure could leave partial state.
+
 ## Prerequisites
 
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up)
@@ -65,7 +67,9 @@ Create your first principal (user or agent):
 
 Generate a token and set it as a secret:
 
-    openssl rand -hex 32 | wrangler secret put MOSTLY_TOKEN
+    TOKEN=$(openssl rand -hex 32)
+    echo "$TOKEN" | wrangler secret put MOSTLY_TOKEN
+    echo "Your token: $TOKEN"
 
 Save this token — you'll need it to authenticate API requests.
 
