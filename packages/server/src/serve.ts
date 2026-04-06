@@ -81,6 +81,30 @@ async function main() {
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
   const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
 
+  // Seed bootstrap principal if env var is set (for Docker E2E testing)
+  if (process.env.MOSTLY_BOOTSTRAP_ACTOR) {
+    const handle = process.env.MOSTLY_BOOTSTRAP_ACTOR;
+    try {
+      await principalService.getByHandle(workspace.id, handle);
+      console.log(`Bootstrap principal '${handle}' already exists`);
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) throw err;
+      const now = new Date().toISOString();
+      await repos.principals.create({
+        id: generateId(ID_PREFIXES.principal),
+        workspace_id: workspace.id,
+        handle,
+        kind: 'agent',
+        display_name: `Bootstrap Agent (${handle})`,
+        metadata_json: null,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      });
+      console.log(`Created bootstrap principal: ${handle}`);
+    }
+  }
+
   const app = createApp({
     workspaceId: workspace.id,
     token: config.token,
