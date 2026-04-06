@@ -38,13 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f docker-compose.e2e.yml up --build --exit-code-from test-runner
-      - name: Server logs on failure
+      - name: Save server logs on failure
         if: failure()
-        run: docker compose -f docker-compose.e2e.yml logs server
+        run: docker compose -f docker-compose.e2e.yml logs server > /tmp/mostly-e2e-server.log 2>&1
       - name: Upload server logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-server-logs
-          path: /tmp/mostly-e2e-*.log
+          path: /tmp/mostly-e2e-server.log
           retention-days: 7

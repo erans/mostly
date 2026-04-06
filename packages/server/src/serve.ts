@@ -51,7 +51,9 @@ function loadConfig(): MostlyConfig {
 
   const port = process.env.MOSTLY_PORT
     ? parsePort(process.env.MOSTLY_PORT)
-    : fileConfig.port ?? DEFAULT_PORT;
+    : fileConfig.port != null
+      ? parsePort(String(fileConfig.port))
+      : DEFAULT_PORT;
 
   return { token, port, server_url: fileConfig.server_url };
 }
