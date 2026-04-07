@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
 import { useTaskList, useTask } from '@/hooks/use-tasks';
-import { useConfig } from '@/hooks/use-config';
 import { TaskList } from '@/components/task-list';
 import { TaskDetail } from '@/components/task-detail';
 import { Layout } from '@/components/layout';
@@ -14,7 +13,6 @@ export function TasksPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { config } = useConfig();
 
   const [cmdOpen, setCmdOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -54,18 +52,16 @@ export function TasksPage() {
 
   useKeyboard(useMemo(() => ({
     'cmd+k': () => setCmdOpen(true),
-    'Escape': () => { setCmdOpen(false); setFormOpen(false); if (taskId) handleCloseDetail(); },
+    'escape': () => { setCmdOpen(false); setFormOpen(false); if (taskId) handleCloseDetail(); },
     'c': () => setFormOpen(true),
   }), [taskId, handleCloseDetail]));
-
-  // Suppress unused variable warning for config (may be used in future for assignee_id)
-  void config;
 
   return (
     <>
       <Layout
         onCommandPalette={() => setCmdOpen(true)}
         detail={selectedTask ? <TaskDetail task={selectedTask} onClose={handleCloseDetail} /> : undefined}
+        onCloseDetail={handleCloseDetail}
       >
         {isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-text-muted">Loading...</div>

@@ -36,7 +36,7 @@ export function ProjectTasksPage() {
 
   useKeyboard(useMemo(() => ({
     'cmd+k': () => setCmdOpen(true),
-    'Escape': () => { setCmdOpen(false); setFormOpen(false); if (taskId) handleCloseDetail(); },
+    'escape': () => { setCmdOpen(false); setFormOpen(false); if (taskId) handleCloseDetail(); },
     'c': () => setFormOpen(true),
   }), [taskId, handleCloseDetail]));
 
@@ -45,6 +45,7 @@ export function ProjectTasksPage() {
       <Layout
         onCommandPalette={() => setCmdOpen(true)}
         detail={selectedTask ? <TaskDetail task={selectedTask} onClose={handleCloseDetail} /> : undefined}
+        onCloseDetail={handleCloseDetail}
       >
         {isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-text-muted">Loading...</div>

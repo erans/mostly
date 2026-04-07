@@ -22,6 +22,12 @@ export function useKeyboard(shortcuts: Shortcuts) {
       return;
     }
 
+    // Escape — always handle before toLowerCase
+    if (e.key === 'Escape') {
+      shortcuts['escape']?.();
+      return;
+    }
+
     // Single-key shortcuts
     const handler = shortcuts[e.key.toLowerCase()];
     if (handler && !e.metaKey && !e.ctrlKey && !e.altKey) {

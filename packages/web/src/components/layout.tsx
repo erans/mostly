@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Sidebar } from './sidebar';
 
 interface LayoutProps {
-  children: React.ReactNode;
-  detail?: React.ReactNode;
+  children: ReactNode;
+  detail?: ReactNode;
   onCommandPalette: () => void;
+  onCloseDetail?: () => void;
 }
 
 function useBreakpoint() {
@@ -22,7 +23,7 @@ function useBreakpoint() {
   return bp;
 }
 
-export function Layout({ children, detail, onCommandPalette }: LayoutProps) {
+export function Layout({ children, detail, onCommandPalette, onCloseDetail }: LayoutProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const bp = useBreakpoint();
@@ -38,9 +39,13 @@ export function Layout({ children, detail, onCommandPalette }: LayoutProps) {
       <div className="flex h-screen flex-col overflow-hidden bg-bg">
         {/* Mobile top bar */}
         <div className="flex items-center justify-between border-b border-border bg-sidebar px-3 py-2">
-          <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="text-text-secondary text-lg">☰</button>
+          {showDetail && onCloseDetail ? (
+            <button onClick={onCloseDetail} aria-label="Back to list" className="text-text-secondary text-lg">{'\u2190'}</button>
+          ) : (
+            <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="text-text-secondary text-lg">{'\u2630'}</button>
+          )}
           <span className="text-sm font-bold text-text">Mostly</span>
-          <button onClick={onCommandPalette} aria-label="Search" className="text-text-secondary text-lg">⌘</button>
+          <button onClick={onCommandPalette} aria-label="Search" className="text-text-secondary text-lg">{'\u2318'}</button>
         </div>
 
         {/* Mobile menu overlay */}
