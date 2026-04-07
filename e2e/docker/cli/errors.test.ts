@@ -17,7 +17,7 @@ describe('CLI: error handling', () => {
         env: {
           ...process.env,
           MOSTLY_SERVER_URL: 'http://localhost:59999',
-          MOSTLY_TOKEN: 'test-token-e2e',
+          MOSTLY_AGENT_TOKEN: 'test-token-e2e',
           MOSTLY_ACTOR: 'e2e-agent',
         },
         timeout: 10000,
@@ -38,7 +38,7 @@ describe('CLI: error handling', () => {
         env: {
           ...process.env,
           MOSTLY_SERVER_URL: process.env.MOSTLY_SERVER_URL ?? process.env.SERVER_URL ?? 'http://localhost:6080',
-          MOSTLY_TOKEN: 'wrong-token',
+          MOSTLY_AGENT_TOKEN: 'wrong-token',
           MOSTLY_ACTOR: 'e2e-agent',
         },
         timeout: 10000,

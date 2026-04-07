@@ -3,7 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { serve } from '@hono/node-server';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256 } from '@mostly/core';
 import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
 import { createApp } from './app.js';
 import { fileURLToPath } from 'url';
@@ -127,6 +127,26 @@ async function main() {
         const existing = await principalService.getByHandle(workspace.id, handle);
         console.log(`Bootstrap principal '${handle}' already exists (concurrent create)`);
       }
+    }
+  }
+
+  // Install bootstrap agent token if env var is set (for Docker E2E and other
+  // headless setups). Only takes effect when the workspace has no existing
+  // hash — we never overwrite a token that the CLI init flow (or a previous
+  // bootstrap) already wrote, to protect production deployments from an
+  // accidentally-set env var clobbering live credentials.
+  if (process.env.MOSTLY_BOOTSTRAP_AGENT_TOKEN) {
+    const existingHash = await repos.workspaces.getAgentTokenHash(workspace.id);
+    if (existingHash) {
+      console.warn(
+        'Bootstrap agent token env var set but workspace already has an agent_token_hash; env var ignored',
+      );
+    } else {
+      await repos.workspaces.update(workspace.id, {
+        agent_token_hash: sha256(process.env.MOSTLY_BOOTSTRAP_AGENT_TOKEN),
+        updated_at: new Date().toISOString(),
+      });
+      console.log(`Bootstrap agent token installed for workspace ${workspace.id}`);
     }
   }
 
