@@ -1,10 +1,9 @@
 import { createD1Db, createRepositories, createD1TransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
 import { createApp } from './app.js';
 
 interface Env {
   DB: unknown;
-  MOSTLY_TOKEN: string;
   WORKSPACE_ID: string;
 }
 
@@ -20,14 +19,15 @@ export default {
     const projectService = new ProjectService(repos.projects);
     const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
     const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
+    const authService = new AuthService(repos.principals, repos.workspaces, repos.sessions, repos.apiKeys);
 
     const app = createApp({
       workspaceId: env.WORKSPACE_ID,
-      token: env.MOSTLY_TOKEN,
       principalService,
       projectService,
       taskService,
       maintenanceService,
+      authService,
     });
 
     return app.fetch(request, env);

@@ -7,45 +7,44 @@ import { authMiddleware } from '../src/middleware/auth.js';
 import type { AppEnv } from '../src/app.js';
 
 describe('auth middleware', () => {
-  it('rejects requests without Authorization header', async () => {
+  it('rejects requests without any authentication', async () => {
     const { app } = createTestApp();
-    app.get('/test', (c) => c.json({ ok: true }));
+    app.get('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test');
+    const res = await app.request('/v0/test');
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error.code).toBe('unauthorized');
-    expect(body.error.message).toContain('Missing');
+    expect(body.error.message).toContain('Authentication required');
   });
 
-  it('rejects requests with wrong token', async () => {
+  it('rejects requests with invalid bearer token', async () => {
     const { app } = createTestApp();
-    app.get('/test', (c) => c.json({ ok: true }));
+    app.get('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: 'Bearer wrong-token' },
     });
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error.code).toBe('unauthorized');
-    expect(body.error.message).toContain('Invalid');
   });
 
   it('rejects requests with malformed Authorization header', async () => {
     const { app } = createTestApp();
-    app.get('/test', (c) => c.json({ ok: true }));
+    app.get('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: 'Basic dXNlcjpwYXNz' },
     });
     expect(res.status).toBe(401);
   });
 
-  it('passes requests with correct token', async () => {
+  it('passes requests with valid agent token', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', (c) => c.json({ ok: true }));
+    app.get('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(200);
@@ -57,11 +56,11 @@ describe('auth middleware', () => {
 describe('error middleware', () => {
   it('maps NotFoundError to 404', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new NotFoundError('thing', '123');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(404);
@@ -72,11 +71,11 @@ describe('error middleware', () => {
 
   it('maps InvalidArgumentError to 400', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new InvalidArgumentError('bad input');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(400);
@@ -87,11 +86,11 @@ describe('error middleware', () => {
 
   it('maps ConflictError to 409', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new ConflictError('already exists');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(409);
@@ -101,11 +100,11 @@ describe('error middleware', () => {
 
   it('maps PreconditionFailedError to 412', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new PreconditionFailedError('version mismatch');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(412);
@@ -115,11 +114,11 @@ describe('error middleware', () => {
 
   it('maps unknown errors to 500', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new Error('something broke');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(500);
@@ -130,11 +129,11 @@ describe('error middleware', () => {
 
   it('returns JSON error format with code and message', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', () => {
+    app.get('/v0/test', () => {
       throw new NotFoundError('widget', 'abc');
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     const body = await res.json();
@@ -147,11 +146,11 @@ describe('error middleware', () => {
 });
 
 describe('actor middleware', () => {
-  it('requires actor_id or actor_handle on POST requests', async () => {
+  it('requires actor_id or actor_handle on POST for agent auth', async () => {
     const { app, testToken } = createTestApp();
-    app.post('/test', (c) => c.json({ ok: true }));
+    app.post('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${testToken}`,
@@ -167,11 +166,11 @@ describe('actor middleware', () => {
 
   it('resolves actor by actor_id on POST', async () => {
     const { app, testToken, testPrincipalId } = createTestApp();
-    app.post('/test', (c) => {
+    app.post('/v0/test', (c) => {
       return c.json({ actorId: c.get('actorId') });
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${testToken}`,
@@ -186,11 +185,11 @@ describe('actor middleware', () => {
 
   it('resolves actor by actor_handle on POST', async () => {
     const { app, testToken, testPrincipalId, testPrincipalHandle } = createTestApp();
-    app.post('/test', (c) => {
+    app.post('/v0/test', (c) => {
       return c.json({ actorId: c.get('actorId') });
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${testToken}`,
@@ -205,9 +204,9 @@ describe('actor middleware', () => {
 
   it('returns 404 for non-existent actor_id', async () => {
     const { app, testToken } = createTestApp();
-    app.post('/test', (c) => c.json({ ok: true }));
+    app.post('/v0/test', (c) => c.json({ ok: true }));
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${testToken}`,
@@ -220,11 +219,11 @@ describe('actor middleware', () => {
 
   it('does not require actor on GET requests', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', (c) => {
+    app.get('/v0/test', (c) => {
       return c.json({ workspaceId: c.get('workspaceId') });
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(200);
@@ -234,11 +233,11 @@ describe('actor middleware', () => {
 
   it('sets workspaceId on context for all requests', async () => {
     const { app, testToken, workspaceId } = createTestApp();
-    app.get('/test', (c) => {
+    app.get('/v0/test', (c) => {
       return c.json({ workspaceId: c.get('workspaceId') });
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(200);
@@ -248,7 +247,7 @@ describe('actor middleware', () => {
 
   it('makes services available on context', async () => {
     const { app, testToken } = createTestApp();
-    app.get('/test', (c) => {
+    app.get('/v0/test', (c) => {
       const ps = c.get('principalService');
       const pj = c.get('projectService');
       const ts = c.get('taskService');
@@ -261,7 +260,7 @@ describe('actor middleware', () => {
       });
     });
 
-    const res = await app.request('/test', {
+    const res = await app.request('/v0/test', {
       headers: { Authorization: `Bearer ${testToken}` },
     });
     expect(res.status).toBe(200);

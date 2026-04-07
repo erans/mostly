@@ -1,27 +1,31 @@
 import { Hono } from 'hono';
-import type { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
+import type { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
 import { errorHandler, authMiddleware, actorMiddleware } from './middleware/index.js';
 import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes } from './routes/index.js';
+
+export type AuthMethod = 'session' | 'api_key' | 'agent_token';
 
 export type AppEnv = {
   Variables: {
     workspaceId: string;
     actorId: string;
+    authMethod: AuthMethod;
     principalService: PrincipalService;
     projectService: ProjectService;
     taskService: TaskService;
     maintenanceService: MaintenanceService;
+    authService: AuthService;
     parsedBody: Record<string, unknown>;
   };
 };
 
 export interface AppDependencies {
   workspaceId: string;
-  token: string;
   principalService: PrincipalService;
   projectService: ProjectService;
   taskService: TaskService;
   maintenanceService: MaintenanceService;
+  authService: AuthService;
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnv> {
@@ -37,19 +41,22 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('*', async (c, next) => {
     c.set('workspaceId', deps.workspaceId);
     c.set('actorId', '');
+    c.set('authMethod', 'session' as AuthMethod);
     c.set('parsedBody', {});
     c.set('principalService', deps.principalService);
     c.set('projectService', deps.projectService);
     c.set('taskService', deps.taskService);
     c.set('maintenanceService', deps.maintenanceService);
+    c.set('authService', deps.authService);
     await next();
   });
 
-  // Auth middleware — validates bearer token
-  app.use('*', authMiddleware(deps.token));
+  // Auth middleware — validates session cookie, API key, or agent token
+  // Auth routes (login/register) will be mounted before this in Task 9
+  app.use('/v0/*', authMiddleware());
 
-  // Actor resolution — resolves actor from body on mutating requests
-  app.use('*', actorMiddleware());
+  // Actor resolution — resolves actor from body on mutating requests (agents only)
+  app.use('/v0/*', actorMiddleware());
 
   // API routes
   app.route('/v0/principals', principalRoutes());
