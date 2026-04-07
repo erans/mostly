@@ -1,0 +1,375 @@
+import { describe, expect, it } from 'vitest';
+import { createTestApp } from './helpers.js';
+
+describe('auth routes', () => {
+  describe('POST /v0/auth/register', () => {
+    it('registers first user as admin', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.data.handle).toBe('admin');
+      expect(body.data.is_admin).toBe(true);
+
+      // Should set session cookie
+      const setCookie = res.headers.get('set-cookie');
+      expect(setCookie).toContain('mostly_session=sess_');
+    });
+
+    it('rejects registration when closed', async () => {
+      const { app } = createTestApp();
+
+      // Register first user
+      await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+
+      // Second registration should fail (workspace.allow_registration defaults to false)
+      const res = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'user2', password: 'password123' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('validates request body', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: '', password: 'short' }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 for malformed JSON body (not 500)', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'not-json',
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /v0/auth/login', () => {
+    it('logs in with correct credentials', async () => {
+      const { app } = createTestApp();
+
+      // Register first
+      await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'correct-password' }),
+      });
+
+      // Login
+      const res = await app.request('/v0/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'correct-password' }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.data.handle).toBe('alice');
+      expect(res.headers.get('set-cookie')).toContain('mostly_session=sess_');
+    });
+
+    it('rejects wrong password', async () => {
+      const { app } = createTestApp();
+
+      await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'correct-password' }),
+      });
+
+      const res = await app.request('/v0/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'wrong-password' }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects unknown handle with same generic message as wrong password', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'nobody', password: 'whatever' }),
+      });
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      // No account-existence disclosure
+      expect(body.error.message).toBe('Invalid handle or password');
+    });
+  });
+
+  describe('GET /v0/auth/me', () => {
+    it('returns current user via session cookie', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+
+      const res = await app.request('/v0/auth/me', {
+        headers: { Cookie: sessionCookie },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.data.handle).toBe('alice');
+    });
+
+    it('returns 401 without auth', async () => {
+      const { app } = createTestApp();
+      const res = await app.request('/v0/auth/me');
+      expect(res.status).toBe(401);
+    });
+
+    it('rejects agent token on /me (human-only endpoint)', async () => {
+      const { app, testAgentToken } = createTestApp();
+      const res = await app.request('/v0/auth/me', {
+        headers: { Authorization: `Bearer ${testAgentToken}` },
+      });
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('POST /v0/auth/logout', () => {
+    it('invalidates the session and clears the cookie', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+
+      const logoutRes = await app.request('/v0/auth/logout', {
+        method: 'POST',
+        headers: { Cookie: sessionCookie },
+      });
+      expect(logoutRes.status).toBe(200);
+
+      // Subsequent /me with the same cookie should fail
+      const meRes = await app.request('/v0/auth/me', {
+        headers: { Cookie: sessionCookie },
+      });
+      expect(meRes.status).toBe(401);
+    });
+
+    it('is idempotent — succeeds even without a session', async () => {
+      const { app } = createTestApp();
+      const res = await app.request('/v0/auth/logout', { method: 'POST' });
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('API keys', () => {
+    it('creates and uses an API key', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+
+      // Create API key
+      const createRes = await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'test-key' }),
+      });
+      expect(createRes.status).toBe(201);
+      const createBody = await createRes.json();
+      const fullKey = createBody.data.key;
+      expect(fullKey.startsWith('msk_')).toBe(true);
+
+      // Use API key to access /v0/auth/me
+      const meRes = await app.request('/v0/auth/me', {
+        headers: { Authorization: `Bearer ${fullKey}` },
+      });
+      expect(meRes.status).toBe(200);
+      const meBody = await meRes.json();
+      expect(meBody.data.handle).toBe('alice');
+    });
+
+    it('lists API keys without leaking the full key', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+
+      await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'key1' }),
+      });
+
+      const listRes = await app.request('/v0/auth/api-keys', {
+        headers: { Cookie: sessionCookie },
+      });
+      expect(listRes.status).toBe(200);
+      const listBody = await listRes.json();
+      expect(listBody.data.items).toHaveLength(1);
+      expect(listBody.data.items[0].name).toBe('key1');
+      // Full key must NOT be in the list (only on creation)
+      expect(listBody.data.items[0].key).toBeUndefined();
+    });
+
+    it('revokes an API key', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+
+      const createRes = await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'doomed-key' }),
+      });
+      const createBody = await createRes.json();
+      const keyId = createBody.data.id;
+      const fullKey = createBody.data.key;
+
+      // Revoke
+      const delRes = await app.request(`/v0/auth/api-keys/${keyId}`, {
+        method: 'DELETE',
+        headers: { Cookie: sessionCookie },
+      });
+      expect(delRes.status).toBe(200);
+
+      // Revoked key can no longer authenticate
+      const meRes = await app.request('/v0/auth/me', {
+        headers: { Authorization: `Bearer ${fullKey}` },
+      });
+      expect(meRes.status).toBe(401);
+    });
+
+    it('rejects api-keys POST without auth (does not leak validation 400)', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'foo' }),
+      });
+      // Auth is checked BEFORE body validation, so this is 401 (not 400)
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('invites', () => {
+    it('admin creates invite and invitee accepts', async () => {
+      const { app } = createTestApp();
+
+      // Register admin
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+      const adminCookie = adminRes.headers.get('set-cookie')!.split(';')[0];
+
+      // Create invite
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'newuser' }),
+      });
+      expect(inviteRes.status).toBe(201);
+      const inviteBody = await inviteRes.json();
+      const inviteToken = inviteBody.data.invite_token;
+      expect(inviteToken.startsWith('inv_')).toBe(true);
+
+      // Accept invite
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, password: 'newuser-pass' }),
+      });
+      expect(acceptRes.status).toBe(201);
+      const acceptBody = await acceptRes.json();
+      expect(acceptBody.data.handle).toBe('newuser');
+      expect(acceptBody.data.is_active).toBe(true);
+      expect(acceptBody.data.is_admin).toBe(false);
+    });
+
+    it('rejects invite creation by non-admin', async () => {
+      const { app } = createTestApp();
+
+      // Register admin
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+      const adminCookie = adminRes.headers.get('set-cookie')!.split(';')[0];
+
+      // Admin invites a regular user
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'regular' }),
+      });
+      const inviteToken = (await inviteRes.json()).data.invite_token;
+
+      // Regular user accepts the invite
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, password: 'regular-pass' }),
+      });
+      const regularCookie = acceptRes.headers.get('set-cookie')!.split(';')[0];
+
+      // Regular user tries to invite someone — should be forbidden
+      const res = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: regularCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'someone' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('rejects invalid invite token', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'inv_bogus', password: 'password123' }),
+      });
+      expect(res.status).toBe(401);
+    });
+  });
+});

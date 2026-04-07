@@ -28,7 +28,7 @@ export function createTestApp() {
   const now = new Date().toISOString();
   repos.workspaces.create({
     id: TEST_WORKSPACE_ID,
-    slug: 'test-workspace',
+    slug: 'default',
     name: 'Test Workspace',
     agent_token_hash: sha256(testAgentToken),
     created_at: now,
