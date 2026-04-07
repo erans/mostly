@@ -12,7 +12,12 @@ import { ApiError } from '@/api/client';
 
 interface AuthState {
   user: Principal | null;
-  loading: boolean;
+  /**
+   * True only while the initial bootstrap (`getMe` on mount) is in flight.
+   * Does NOT toggle for `login`/`register`/`logout`/`refreshUser` — callers
+   * who need per-action loading state should track it locally on the form.
+   */
+  bootstrapping: boolean;
   error: string | null;
 }
 
@@ -26,29 +31,53 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function errorMessage(err: unknown): string {
-  if (err instanceof ApiError) return err.message;
+  if (err instanceof ApiError) {
+    // Map known server error codes to friendlier user-facing copy. The
+    // canonical codes come from `packages/types/src/errors.ts`. The auth
+    // service uses `UnauthorizedError` for bad-credentials/disabled-account
+    // (login) and `ConflictError` for handle collisions (register), with
+    // `NotFoundError` and `ForbiddenError` covering the remaining
+    // user-actionable cases.
+    if (err.code === 'unauthorized') return 'Incorrect handle or password.';
+    if (err.code === 'conflict') return 'That handle is already taken.';
+    if (err.code === 'forbidden') return 'Registration is closed. Ask an admin for an invite.';
+    if (err.code === 'not_found') return 'No account with that handle.';
+    return err.message;
+  }
   if (err instanceof Error) return err.message;
-  return 'Unknown error';
+  return 'Something went wrong.';
 }
 
+/**
+ * AuthProvider — owns the current user, bootstraps from the server cookie
+ * on mount, and exposes login/register/logout/refresh actions via context.
+ *
+ * PRECONDITION: callers MUST call `setBaseUrl(serverUrl)` from
+ * `@/api/client` BEFORE mounting `<AuthProvider>`. The bootstrap effect
+ * fires `getMe` synchronously after mount, which calls `apiFetch` →
+ * `getBaseUrl()` and throws if no base URL is configured. The bootstrap
+ * swallows that throw (it cannot tell a misconfiguration from a 401), so
+ * a missing `setBaseUrl` silently drops the user into "not signed in"
+ * with no diagnostic. Don't let that happen — wire `setBaseUrl` first.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Principal | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Bootstrap: try to fetch the current user on mount. A 401 (or any
-  // failure) just means "not logged in yet" — that's a normal state and
-  // should NOT surface as an error.
+  // Initial bootstrap: try to fetch the current user on mount. A 401 (or
+  // any failure) just means "not logged in yet" — that's a normal state
+  // and should NOT surface as an error.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const me = await authApi.getMe();
-        if (!cancelled) setUser(me);
+        const res = await authApi.getMe();
+        if (!cancelled) setUser(res.data);
       } catch {
         if (!cancelled) setUser(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setBootstrapping(false);
       }
     })();
     return () => {
@@ -59,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (handle: string, password: string) => {
     setError(null);
     try {
-      const principal = await authApi.login({ handle, password });
-      setUser(principal);
+      const res = await authApi.login({ handle, password });
+      setUser(res.data);
     } catch (err) {
       setError(errorMessage(err));
       throw err;
@@ -70,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (req: RegisterRequest) => {
     setError(null);
     try {
-      const principal = await authApi.register(req);
-      setUser(principal);
+      const res = await authApi.register(req);
+      setUser(res.data);
     } catch (err) {
       setError(errorMessage(err));
       throw err;
@@ -94,8 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     setError(null);
     try {
-      const me = await authApi.getMe();
-      setUser(me);
+      const res = await authApi.getMe();
+      setUser(res.data);
     } catch (err) {
       setUser(null);
       // Don't surface as an error — refresh is best-effort.
@@ -105,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     user,
-    loading,
+    bootstrapping,
     error,
     login,
     register,

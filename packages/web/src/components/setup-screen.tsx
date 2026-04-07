@@ -22,10 +22,21 @@ export function SetupScreen() {
       if (!res.ok) {
         throw new Error(`Server responded with HTTP ${res.status}`);
       }
+      // Imperative call required: setConfig triggers a re-render that mounts
+      // routes whose query hooks call apiFetch immediately, which needs the
+      // base URL configured before the first request fires.
       setBaseUrl(trimmed);
       setConfig({ serverUrl: trimmed });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed');
+      if (err instanceof TypeError) {
+        // Browser fetch surfaces network/CORS/cert failures as TypeError
+        // ("Failed to fetch"), which is opaque on its own.
+        setError(`Could not reach ${serverUrl} — check the URL and that the server is running.`);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Connection failed');
+      }
     } finally {
       setLoading(false);
     }

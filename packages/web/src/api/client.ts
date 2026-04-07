@@ -18,7 +18,11 @@ export function setBaseUrl(url: string): void {
   baseUrl = url;
 }
 
-function getBaseUrl(): string {
+export function clearBaseUrl(): void {
+  baseUrl = null;
+}
+
+export function getBaseUrl(): string {
   if (!baseUrl) throw new Error('API client not configured — call setBaseUrl first');
   return baseUrl;
 }

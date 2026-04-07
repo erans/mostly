@@ -7,21 +7,27 @@ import type {
 } from '@mostly/types';
 import { apiFetch } from './client';
 
+// Convention: these functions return the wrapped {data: ...} envelope to
+// match `principals.ts`/`tasks.ts`. Consumers unwrap inline. The two
+// exceptions are `logout` and `revokeApiKey`, which return `Promise<void>`
+// because their response bodies are uninteresting (a `{success: true}`
+// acknowledgement that no caller currently inspects).
+
 interface SingleResponse<T> { data: T }
 interface ListResponse<T> { data: { items: T[] } }
 
-export function register(req: RegisterRequest): Promise<Principal> {
+export function register(req: RegisterRequest): Promise<SingleResponse<Principal>> {
   return apiFetch<SingleResponse<Principal>>('/v0/auth/register', {
     method: 'POST',
     body: JSON.stringify(req),
-  }).then((res) => res.data);
+  });
 }
 
-export function login(req: LoginRequest): Promise<Principal> {
+export function login(req: LoginRequest): Promise<SingleResponse<Principal>> {
   return apiFetch<SingleResponse<Principal>>('/v0/auth/login', {
     method: 'POST',
     body: JSON.stringify(req),
-  }).then((res) => res.data);
+  });
 }
 
 export async function logout(): Promise<void> {
@@ -30,21 +36,21 @@ export async function logout(): Promise<void> {
   });
 }
 
-export function getMe(): Promise<Principal> {
-  return apiFetch<SingleResponse<Principal>>('/v0/auth/me').then((res) => res.data);
+export function getMe(): Promise<SingleResponse<Principal>> {
+  return apiFetch<SingleResponse<Principal>>('/v0/auth/me');
 }
 
 export function createApiKey(
   req: CreateApiKeyRequest,
-): Promise<ApiKey & { key: string }> {
+): Promise<SingleResponse<ApiKey & { key: string }>> {
   return apiFetch<SingleResponse<ApiKey & { key: string }>>('/v0/auth/api-keys', {
     method: 'POST',
     body: JSON.stringify(req),
-  }).then((res) => res.data);
+  });
 }
 
-export function listApiKeys(): Promise<ApiKey[]> {
-  return apiFetch<ListResponse<ApiKey>>('/v0/auth/api-keys').then((res) => res.data.items);
+export function listApiKeys(): Promise<ListResponse<ApiKey>> {
+  return apiFetch<ListResponse<ApiKey>>('/v0/auth/api-keys');
 }
 
 export async function revokeApiKey(id: string): Promise<void> {

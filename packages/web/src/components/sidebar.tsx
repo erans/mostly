@@ -113,7 +113,7 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-border/50 text-[10px] font-semibold text-text-secondary">
               ?
             </div>
-            <span className="text-xs text-text-secondary"></span>
+            <span className="text-xs text-text-secondary">Signed out</span>
           </div>
         </div>
       )}
