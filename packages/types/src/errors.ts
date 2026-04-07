@@ -43,3 +43,15 @@ export class PreconditionFailedError extends DomainError {
     super('precondition_failed', message, 412);
   }
 }
+
+export class UnauthorizedError extends DomainError {
+  constructor(message: string = 'Unauthorized') {
+    super('unauthorized', message, 401);
+  }
+}
+
+export class ForbiddenError extends DomainError {
+  constructor(message: string = 'Forbidden') {
+    super('forbidden', message, 403);
+  }
+}

@@ -16,6 +16,7 @@ describe('entity schemas', () => {
       id: '01JQXYZ1234567890ABCDEF',
       slug: 'default',
       name: 'Default',
+      allow_registration: false,
       created_at: now,
       updated_at: now,
     });
@@ -41,6 +42,7 @@ describe('entity schemas', () => {
       display_name: 'Claude Code',
       metadata_json: null,
       is_active: true,
+      is_admin: false,
       created_at: now,
       updated_at: now,
     });
