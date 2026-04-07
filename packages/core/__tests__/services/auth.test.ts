@@ -7,7 +7,8 @@ import {
   FakeApiKeyRepository,
   makeWorkspace,
 } from '../../src/test-utils/index.js';
-import { UnauthorizedError, ForbiddenError, ConflictError, NotFoundError, sha256, generateToken } from '@mostly/types';
+import { UnauthorizedError, ForbiddenError, ConflictError, NotFoundError } from '@mostly/types';
+import { sha256, generateToken } from '../../src/crypto.js';
 
 describe('AuthService', () => {
   let authService: AuthService;

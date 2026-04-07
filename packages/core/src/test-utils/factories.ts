@@ -1,5 +1,6 @@
-import { generateId, ID_PREFIXES, generateToken } from '@mostly/types';
+import { generateId, ID_PREFIXES } from '@mostly/types';
 import type { Workspace, Principal, Project, Task, TaskUpdate, Session, ApiKey } from '@mostly/types';
+import { generateToken } from '../crypto.js';
 
 const now = () => new Date().toISOString();
 

@@ -1,8 +1,7 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createInMemoryDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
-import { sha256, generateToken } from '@mostly/types';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256, generateToken } from '@mostly/core';
 import { createApp } from '../src/app.js';
 
 const __filename = fileURLToPath(import.meta.url);

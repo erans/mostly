@@ -3,9 +3,9 @@ import { timingSafeEqual } from 'crypto';
 import {
   generateId, ID_PREFIXES,
   InvalidArgumentError, NotFoundError, UnauthorizedError, ForbiddenError, ConflictError,
-  generateToken, sha256, SESSION_TTL_MS, INVITE_TTL_MS,
 } from '@mostly/types';
 import type { Principal, Session, ApiKey } from '@mostly/types';
+import { generateToken, sha256, SESSION_TTL_MS, INVITE_TTL_MS } from '../crypto.js';
 import type { PrincipalRepository, WorkspaceRepository, SessionRepository, ApiKeyRepository } from '../repositories/index.js';
 
 const BCRYPT_ROUNDS = 12;

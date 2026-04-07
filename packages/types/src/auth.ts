@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { createHash, randomBytes } from 'crypto';
 
 // --- Schemas ---
 
@@ -55,18 +54,3 @@ export const InviteRequest = z.object({
   display_name: z.string().max(128).optional(),
 });
 export type InviteRequest = z.infer<typeof InviteRequest>;
-
-// --- Token generation ---
-
-export function generateToken(prefix: string): string {
-  return `${prefix}${randomBytes(32).toString('hex')}`;
-}
-
-export function sha256(input: string): string {
-  return createHash('sha256').update(input).digest('hex');
-}
-
-// --- Constants ---
-
-export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
