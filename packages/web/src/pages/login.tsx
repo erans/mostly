@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -11,10 +11,20 @@ export function LoginPage() {
   // Per-action loading state — useAuth().bootstrapping is for the initial
   // /me probe on mount and never toggles for login/register.
   const [submitting, setSubmitting] = useState(false);
+  // Hide stale errors when the user starts typing again. Flips to true on
+  // submit and back to false on every input change.
+  const [errorVisible, setErrorVisible] = useState(false);
+  // useRef guard against double-submit: the disabled={submitting || ...}
+  // check is racy because two rapid clicks before React re-renders both
+  // pass the check. The ref is updated synchronously inside the handler.
+  const submittingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
+    setErrorVisible(true);
     try {
       await login(handle, password);
       navigate('/');
@@ -23,6 +33,7 @@ export function LoginPage() {
       // the form re-renders to show it. Nothing else to do here.
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
@@ -42,7 +53,14 @@ export function LoginPage() {
             autoFocus
             type="text"
             value={handle}
-            onChange={(e) => setHandle(e.target.value)}
+            onChange={(e) => {
+              setHandle(e.target.value);
+              setErrorVisible(false);
+            }}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
             required
           />
@@ -53,13 +71,21 @@ export function LoginPage() {
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrorVisible(false);
+            }}
+            autoComplete="current-password"
             className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
             required
           />
         </label>
 
-        {error && <p className="text-sm text-status-blocked">{error}</p>}
+        {errorVisible && error && (
+          <p role="alert" className="text-sm text-status-blocked">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

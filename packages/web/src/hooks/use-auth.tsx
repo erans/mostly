@@ -59,6 +59,11 @@ function errorMessage(err: unknown): string {
  * swallows that throw (it cannot tell a misconfiguration from a 401), so
  * a missing `setBaseUrl` silently drops the user into "not signed in"
  * with no diagnostic. Don't let that happen — wire `setBaseUrl` first.
+ *
+ * `refreshUser` THROWS on failure and leaves the existing user state
+ * untouched. A transient `getMe` failure should not silently log the user
+ * out — callers decide how to recover (e.g. accept-invite falls back to
+ * navigating to /login on a post-success refresh failure).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Principal | null>(null);
@@ -122,14 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     setError(null);
-    try {
-      const res = await authApi.getMe();
-      setUser(res.data);
-    } catch (err) {
-      setUser(null);
-      // Don't surface as an error — refresh is best-effort.
-      void err;
-    }
+    const res = await authApi.getMe();
+    setUser(res.data);
   }, []);
 
   const value: AuthContextValue = {

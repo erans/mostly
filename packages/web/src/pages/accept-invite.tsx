@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 import { ApiError, apiFetch } from '@/api/client';
@@ -28,6 +28,15 @@ export function AcceptInvitePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Hide stale errors when the user starts typing again.
+  const [errorVisible, setErrorVisible] = useState(false);
+  // useRef guard against double-submit (see login.tsx for rationale).
+  const submittingRef = useRef(false);
+
+  // Derived match state — drives aria-invalid on both password inputs so
+  // assistive tech announces the mismatch. We treat an empty confirm field
+  // as "not yet mismatched" so the user isn't yelled at while typing.
+  const passwordsMatch = password === confirmPassword || confirmPassword.length === 0;
 
   if (!token) {
     return (
@@ -42,7 +51,9 @@ export function AcceptInvitePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setFormError(null);
+    setErrorVisible(true);
 
     if (password.length < 8) {
       setFormError('Password must be at least 8 characters.');
@@ -53,22 +64,33 @@ export function AcceptInvitePage() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // accept-invite isn't in `api/auth.ts` because it's a one-time flow that
       // doesn't belong on the standard auth surface; call apiFetch directly.
       // The server sets the session cookie on success, so we then refresh the
       // auth context to pick up the new principal before navigating home.
-      await apiFetch('/v0/auth/accept-invite', {
+      // Explicit <unknown> matches the convention elsewhere in the codebase
+      // and makes the discarded-response intent clear.
+      await apiFetch<unknown>('/v0/auth/accept-invite', {
         method: 'POST',
         body: JSON.stringify({ token, password }),
       });
-      await refreshUser();
-      navigate('/');
+      try {
+        await refreshUser();
+        navigate('/');
+      } catch {
+        // The invite was accepted (cookie set) but the follow-up /me probe
+        // failed. Send the user to login — they can sign in with the password
+        // they just set.
+        navigate('/login');
+      }
     } catch (err) {
       setFormError(acceptInviteErrorMessage(err));
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 
@@ -92,8 +114,14 @@ export function AcceptInvitePage() {
             autoFocus
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrorVisible(false);
+            }}
+            autoComplete="new-password"
             minLength={8}
+            maxLength={128}
+            aria-invalid={!passwordsMatch}
             className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
             required
           />
@@ -104,13 +132,23 @@ export function AcceptInvitePage() {
           <input
             type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setErrorVisible(false);
+            }}
+            autoComplete="new-password"
+            maxLength={128}
+            aria-invalid={!passwordsMatch}
             className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
             required
           />
         </label>
 
-        {formError && <p className="text-sm text-status-blocked">{formError}</p>}
+        {errorVisible && formError && (
+          <p role="alert" className="text-sm text-status-blocked">
+            {formError}
+          </p>
+        )}
 
         <button
           type="submit"
