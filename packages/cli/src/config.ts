@@ -1,20 +1,36 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
+/**
+ * On-disk config file shape. All auth-related fields are optional because
+ * `mostly init` writes `agent_token` while `mostly login` adds `api_key`,
+ * so a config may be in any of those states.
+ */
 export interface MostlyConfig {
-  server_url: string;
-  token: string;
+  server_url?: string;
+  api_key?: string;
+  agent_token?: string;
   default_actor?: string;
 }
 
+/**
+ * Resolved config passed around at runtime. Fields are normalized (camelCase)
+ * and guaranteed to be consistent. `apiKey` takes precedence over `agentToken`
+ * when both are present.
+ */
 export interface ResolvedConfig {
   serverUrl: string;
-  token: string;
-  actor: string;
+  apiKey?: string;
+  agentToken?: string;
+  /**
+   * Actor handle for agent-token authentication. Ignored when apiKey is set
+   * because the server resolves the actor from the API key.
+   */
+  actor?: string;
 }
 
-const DEFAULT_SERVER_URL = 'http://localhost:6080';
+export const DEFAULT_SERVER_URL = 'http://localhost:6080';
 
 export function getConfigDir(): string {
   return join(homedir(), '.mostly');
@@ -32,25 +48,93 @@ export function configExists(): boolean {
   return existsSync(getConfigPath());
 }
 
-function readConfigFile(): Partial<MostlyConfig> {
+function readConfigFile(): MostlyConfig {
   const path = getConfigPath();
-  if (!existsSync(path)) {
-    return {};
-  }
+  if (!existsSync(path)) return {};
   try {
-    return JSON.parse(readFileSync(path, 'utf-8'));
+    const parsed = JSON.parse(readFileSync(path, 'utf-8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as MostlyConfig;
+    }
+    return {};
   } catch {
     return {};
   }
 }
 
 /**
- * Resolve config with priority: CLI flags > env vars > config file > defaults.
+ * Read the raw on-disk config (or an empty object if missing/corrupt).
+ * Used by login/logout to update specific fields without discarding others.
+ */
+export function readConfig(): MostlyConfig {
+  return readConfigFile();
+}
+
+/**
+ * Write the config file atomically with mode 0600. Creates ~/.mostly/ if it
+ * doesn't exist. "Atomic" means: write to a temp file in the same directory,
+ * then rename into place — no half-written config on disk.
+ */
+export function writeConfig(config: MostlyConfig): void {
+  const dir = getConfigDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // Strip undefined fields so the serialized JSON is clean.
+  const clean: MostlyConfig = {};
+  if (config.server_url) clean.server_url = config.server_url;
+  if (config.api_key) clean.api_key = config.api_key;
+  if (config.agent_token) clean.agent_token = config.agent_token;
+  if (config.default_actor) clean.default_actor = config.default_actor;
+
+  const finalPath = getConfigPath();
+  const tmpPath = `${finalPath}.tmp`;
+  const body = JSON.stringify(clean, null, 2) + '\n';
+  writeFileSync(tmpPath, body, { mode: 0o600 });
+  renameSync(tmpPath, finalPath);
+}
+
+/**
+ * Merge updates into the existing config file and write it back. Only the
+ * provided fields are changed; everything else is preserved. Passing `null`
+ * for a field explicitly removes it.
+ */
+export function updateConfig(updates: {
+  server_url?: string | null;
+  api_key?: string | null;
+  agent_token?: string | null;
+  default_actor?: string | null;
+}): void {
+  const current = readConfigFile();
+  const next: MostlyConfig = { ...current };
+  for (const [key, value] of Object.entries(updates) as [
+    keyof MostlyConfig,
+    string | null | undefined,
+  ][]) {
+    if (value === null) {
+      delete next[key];
+    } else if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  writeConfig(next);
+}
+
+/**
+ * Resolve config with priority: CLI overrides > env vars > config file > defaults.
+ *
+ * Env vars:
+ *   MOSTLY_SERVER_URL    → server_url
+ *   MOSTLY_API_KEY       → api_key
+ *   MOSTLY_AGENT_TOKEN   → agent_token
+ *   MOSTLY_ACTOR         → default_actor (only used with agent_token auth)
  */
 export function loadConfig(overrides?: {
-  actor?: string;
   serverUrl?: string;
-  token?: string;
+  apiKey?: string;
+  agentToken?: string;
+  actor?: string;
 }): ResolvedConfig {
   const file = readConfigFile();
 
@@ -60,17 +144,35 @@ export function loadConfig(overrides?: {
     file.server_url ??
     DEFAULT_SERVER_URL;
 
-  const token =
-    overrides?.token ??
-    process.env.MOSTLY_TOKEN ??
-    file.token ??
-    '';
+  const apiKey = overrides?.apiKey ?? process.env.MOSTLY_API_KEY ?? file.api_key;
+  const agentToken =
+    overrides?.agentToken ?? process.env.MOSTLY_AGENT_TOKEN ?? file.agent_token;
+  const actor = overrides?.actor ?? process.env.MOSTLY_ACTOR ?? file.default_actor;
 
-  const actor =
-    overrides?.actor ??
-    process.env.MOSTLY_ACTOR ??
-    file.default_actor ??
-    '';
+  // Normalize empty strings to undefined so `api_key=""` in a config file
+  // doesn't count as "authenticated".
+  return {
+    serverUrl,
+    apiKey: apiKey || undefined,
+    agentToken: agentToken || undefined,
+    actor: actor || undefined,
+  };
+}
 
-  return { serverUrl, token, actor };
+/**
+ * Require either an API key or an agent token. Commands that need to hit the
+ * server should call this; init/serve do not.
+ */
+export function requireAuth(config: ResolvedConfig): void {
+  if (!config.apiKey && !config.agentToken) {
+    throw new Error(
+      'Not authenticated. Run `mostly init` to set up, or `mostly login` to sign in.',
+    );
+  }
+  if (!config.apiKey && config.agentToken && !config.actor) {
+    throw new Error(
+      'Agent-token authentication requires an actor. Set `default_actor` in ' +
+        `${getConfigPath()}, pass --actor <handle>, or run \`mostly login\` to use an API key.`,
+    );
+  }
 }

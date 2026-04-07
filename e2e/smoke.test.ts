@@ -2,17 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createInMemoryDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
+import {
+  PrincipalService,
+  ProjectService,
+  TaskService,
+  MaintenanceService,
+  AuthService,
+  sha256,
+  generateToken,
+} from '@mostly/core';
 import { createApp } from '@mostly/server';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const TEST_TOKEN = 'e2e-smoke-token';
 const TEST_WORKSPACE_ID = '01WS_SMOKE_TEST_00000001';
 const TEST_PRINCIPAL_ID = '01PR_SMOKE_TEST_00000001';
 const TEST_PRINCIPAL_HANDLE = 'smoke-agent';
 
+/**
+ * E2E smoke test: stands up a real server with an in-memory DB, seeds a
+ * workspace with an agent token, and drives the full task lifecycle through
+ * the HTTP surface.
+ *
+ * This uses the agent-token auth path (shared `mat_*` bearer token) rather
+ * than session cookies because the smoke test is synchronous and cares about
+ * exercising the mutating routes — agent token avoids the extra
+ * register/login round-trips and keeps the test close to what a CI runner
+ * or headless agent would do.
+ */
 function setupApp() {
   const db = createInMemoryDb();
   const migrationsDir = join(__dirname, '..', 'packages', 'db', 'migrations');
@@ -21,17 +39,23 @@ function setupApp() {
   const repos = createRepositories(db);
   const tx = createTransactionManager(db);
 
-  // Seed workspace
+  // Fresh random agent token per setup so repeat runs don't collide on state.
+  const testAgentToken = generateToken('mat_');
+
+  // Seed workspace — agent_token_hash is what the auth middleware validates
+  // the Bearer token against.
   const now = new Date().toISOString();
   repos.workspaces.create({
     id: TEST_WORKSPACE_ID,
     slug: 'smoke-test',
     name: 'Smoke Test Workspace',
+    agent_token_hash: sha256(testAgentToken),
     created_at: now,
     updated_at: now,
   });
 
-  // Seed bootstrap principal (required by actor middleware)
+  // Seed bootstrap principal (the `actor_id` the mutating requests reference).
+  // Agent principals have no password and are not admins.
   repos.principals.create({
     id: TEST_PRINCIPAL_ID,
     workspace_id: TEST_WORKSPACE_ID,
@@ -39,7 +63,9 @@ function setupApp() {
     kind: 'agent',
     display_name: 'Smoke Test Agent',
     metadata_json: null,
+    password_hash: null,
     is_active: true,
+    is_admin: false,
     created_at: now,
     updated_at: now,
   });
@@ -49,30 +75,36 @@ function setupApp() {
   const projectService = new ProjectService(repos.projects);
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
   const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
+  const authService = new AuthService(
+    repos.principals,
+    repos.workspaces,
+    repos.sessions,
+    repos.apiKeys,
+  );
 
   const app = createApp({
     workspaceId: TEST_WORKSPACE_ID,
-    token: TEST_TOKEN,
     principalService,
     projectService,
     taskService,
     maintenanceService,
+    authService,
   });
 
-  return { app };
-}
-
-function authHeaders(): Record<string, string> {
-  return {
-    Authorization: `Bearer ${TEST_TOKEN}`,
-    'Content-Type': 'application/json',
-  };
+  return { app, testAgentToken };
 }
 
 describe('E2E Smoke Test', () => {
   it('completes full task lifecycle', async () => {
-    const { app } = setupApp();
-    const headers = authHeaders();
+    const { app, testAgentToken } = setupApp();
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${testAgentToken}`,
+      'Content-Type': 'application/json',
+    };
+    const getHeaders: Record<string, string> = {
+      Authorization: `Bearer ${testAgentToken}`,
+    };
 
     // 1. Create a new principal via API
     const principalRes = await app.request('/v0/principals', {
@@ -187,7 +219,7 @@ describe('E2E Smoke Test', () => {
     // 8. Verify final task state via GET (by key)
     const getRes = await app.request(`/v0/tasks/${task.key}`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+      headers: getHeaders,
     });
     expect(getRes.status).toBe(200);
     const fetched = (await getRes.json() as any).data;
@@ -200,7 +232,7 @@ describe('E2E Smoke Test', () => {
     // 9. List task updates and verify count
     const listUpdatesRes = await app.request(`/v0/tasks/${task.id}/updates`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+      headers: getHeaders,
     });
     expect(listUpdatesRes.status).toBe(200);
     const updates = (await listUpdatesRes.json() as any).data;
@@ -213,7 +245,7 @@ describe('E2E Smoke Test', () => {
     // 10. List tasks with status filter and verify the task appears
     const listRes = await app.request('/v0/tasks?status=closed', {
       method: 'GET',
-      headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+      headers: getHeaders,
     });
     expect(listRes.status).toBe(200);
     const list = (await listRes.json() as any).data;

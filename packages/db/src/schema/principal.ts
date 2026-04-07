@@ -8,7 +8,9 @@ export const principals = sqliteTable('principal', {
   kind: text('kind').notNull(),
   display_name: text('display_name'),
   metadata_json: text('metadata_json'),
+  password_hash: text('password_hash'),
   is_active: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  is_admin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
 }, (table) => [

@@ -13,7 +13,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -35,7 +35,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -53,7 +53,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -70,7 +70,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -89,7 +89,7 @@ describe('Project Routes', () => {
       await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -103,7 +103,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -123,7 +123,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -138,7 +138,7 @@ describe('Project Routes', () => {
     it('returns project by ULID', async () => {
       const project = await createProject('BYID', 'By ID Project');
       const res = await env.app.request(`/v0/projects/${project.id}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -148,7 +148,7 @@ describe('Project Routes', () => {
     it('returns project by key', async () => {
       await createProject('BYKEY', 'By Key Project');
       const res = await env.app.request('/v0/projects/BYKEY', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -157,7 +157,7 @@ describe('Project Routes', () => {
 
     it('returns 404 for non-existent project', async () => {
       const res = await env.app.request('/v0/projects/NONEXISTENT', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(404);
       const body = await res.json();
@@ -170,7 +170,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -187,7 +187,7 @@ describe('Project Routes', () => {
       const res = await env.app.request(`/v0/projects/${project.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ describe('Project Routes', () => {
       const res = await env.app.request('/v0/projects/UPDTKEY', {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -223,7 +223,7 @@ describe('Project Routes', () => {
       const res = await env.app.request(`/v0/projects/${project.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -243,7 +243,7 @@ describe('Project Routes', () => {
       await env.app.request('/v0/projects', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -254,7 +254,7 @@ describe('Project Routes', () => {
       });
 
       const res = await env.app.request('/v0/projects', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -270,7 +270,7 @@ describe('Project Routes', () => {
         await env.app.request('/v0/projects', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.testToken}`,
+            Authorization: `Bearer ${env.testAgentToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -282,7 +282,7 @@ describe('Project Routes', () => {
       }
 
       const res = await env.app.request('/v0/projects?limit=2', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();

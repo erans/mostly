@@ -6,6 +6,7 @@ export const WorkspaceSchema = z.object({
   id: z.string(),
   slug: z.string().min(1),
   name: z.string().min(1),
+  allow_registration: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -21,6 +22,7 @@ export const PrincipalSchema = z.object({
   display_name: z.string().nullable(),
   metadata_json: z.record(z.unknown()).nullable(),
   is_active: z.boolean(),
+  is_admin: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
 });

@@ -2,8 +2,6 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 
 export interface AppConfig {
   serverUrl: string;
-  token: string;
-  principalHandle: string;
 }
 
 interface ConfigContextValue {
@@ -19,7 +17,12 @@ function loadConfig(): AppConfig | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed.serverUrl && parsed.token && parsed.principalHandle) return parsed;
+    // Reject any stale shape from the previous (token + handle) version of
+    // this hook. The session now lives in an HttpOnly cookie, so the only
+    // thing we still persist client-side is the server URL.
+    if (parsed && typeof parsed.serverUrl === 'string' && parsed.serverUrl.length > 0) {
+      return { serverUrl: parsed.serverUrl };
+    }
     return null;
   } catch {
     return null;

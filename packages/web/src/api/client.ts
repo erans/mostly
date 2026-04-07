@@ -12,34 +12,32 @@ export class ApiError extends Error {
   }
 }
 
-export interface ClientConfig {
-  baseUrl: string;
-  token: string;
+let baseUrl: string | null = null;
+
+export function setBaseUrl(url: string): void {
+  baseUrl = url;
 }
 
-let globalConfig: ClientConfig | null = null;
-
-export function setClientConfig(config: ClientConfig) {
-  globalConfig = config;
+export function clearBaseUrl(): void {
+  baseUrl = null;
 }
 
-export function getClientConfig(): ClientConfig {
-  if (!globalConfig) throw new Error('API client not configured — call setClientConfig first');
-  return globalConfig;
+export function getBaseUrl(): string {
+  if (!baseUrl) throw new Error('API client not configured — call setBaseUrl first');
+  return baseUrl;
 }
 
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const { baseUrl, token } = getClientConfig();
-  const url = `${baseUrl}${path}`;
+  const url = `${getBaseUrl()}${path}`;
 
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
       ...options.headers,
     },
   });

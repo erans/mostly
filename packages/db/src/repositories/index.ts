@@ -3,6 +3,8 @@ export { DrizzlePrincipalRepository } from './principal.js';
 export { DrizzleProjectRepository } from './project.js';
 export { DrizzleTaskRepository } from './task.js';
 export { DrizzleTaskUpdateRepository } from './task-update.js';
+export { DrizzleSessionRepository } from './session.js';
+export { DrizzleApiKeyRepository } from './api-key.js';
 export { DrizzleLocalTransactionManager } from './transaction.js';
 export { DrizzleD1TransactionManager } from './d1-transaction.js';
 
@@ -13,6 +15,8 @@ import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
+import { DrizzleSessionRepository } from './session.js';
+import { DrizzleApiKeyRepository } from './api-key.js';
 import { DrizzleLocalTransactionManager } from './transaction.js';
 import { DrizzleD1TransactionManager } from './d1-transaction.js';
 
@@ -23,6 +27,8 @@ export function createRepositories(db: MostlyDb) {
     projects: new DrizzleProjectRepository(db),
     tasks: new DrizzleTaskRepository(db),
     taskUpdates: new DrizzleTaskUpdateRepository(db),
+    sessions: new DrizzleSessionRepository(db),
+    apiKeys: new DrizzleApiKeyRepository(db),
   };
 }
 

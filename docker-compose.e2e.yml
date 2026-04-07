@@ -4,7 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      MOSTLY_TOKEN: test-token-e2e
+      # Bootstrap-only: hashed and stored on first run, ignored if a token
+      # already exists. Server-side name signals "this seeds the workspace".
+      MOSTLY_BOOTSTRAP_AGENT_TOKEN: test-token-e2e
       MOSTLY_PORT: "6080"
       MOSTLY_DB_PATH: /data/mostly.db
       MOSTLY_BOOTSTRAP_ACTOR: e2e-agent
@@ -24,7 +26,9 @@ services:
     environment:
       SERVER_URL: http://server:6080
       MOSTLY_SERVER_URL: http://server:6080
-      MOSTLY_TOKEN: test-token-e2e
+      # Client-side name matches the CLI's user-facing convention; the
+      # bootstrap server installs the same value as a hashed agent token.
+      MOSTLY_AGENT_TOKEN: test-token-e2e
       MOSTLY_ACTOR: e2e-agent
     depends_on:
       server:

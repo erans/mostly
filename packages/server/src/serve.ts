@@ -3,7 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { serve } from '@hono/node-server';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256 } from '@mostly/core';
 import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
 import { createApp } from './app.js';
 import { fileURLToPath } from 'url';
@@ -19,7 +19,7 @@ const DEFAULT_PORT = 6080;
 
 interface MostlyConfig {
   port?: number;
-  token: string;
+  agent_token?: string;
   server_url?: string;
 }
 
@@ -43,19 +43,13 @@ function loadConfig(): MostlyConfig {
     : {};
 
   // Env vars override file config
-  const token = process.env.MOSTLY_TOKEN ?? fileConfig.token;
-  if (!token) {
-    console.error(`No token configured. Set MOSTLY_TOKEN env var or run 'mostly init'.`);
-    process.exit(1);
-  }
-
   const port = process.env.MOSTLY_PORT
     ? parsePort(process.env.MOSTLY_PORT)
     : fileConfig.port != null
       ? parsePort(String(fileConfig.port))
       : DEFAULT_PORT;
 
-  return { token, port, server_url: fileConfig.server_url };
+  return { port, server_url: fileConfig.server_url, agent_token: fileConfig.agent_token };
 }
 
 async function main() {
@@ -102,6 +96,7 @@ async function main() {
   const projectService = new ProjectService(repos.projects);
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
   const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
+  const authService = new AuthService(repos.principals, repos.workspaces, repos.sessions, repos.apiKeys);
 
   // Seed bootstrap principal if env var is set (for Docker E2E testing)
   if (process.env.MOSTLY_BOOTSTRAP_ACTOR) {
@@ -120,7 +115,9 @@ async function main() {
           kind: 'agent',
           display_name: `Bootstrap Agent (${handle})`,
           metadata_json: null,
+          password_hash: null,
           is_active: true,
+          is_admin: false,
           created_at: now,
           updated_at: now,
         });
@@ -133,13 +130,33 @@ async function main() {
     }
   }
 
+  // Install bootstrap agent token if env var is set (for Docker E2E and other
+  // headless setups). Only takes effect when the workspace has no existing
+  // hash — we never overwrite a token that the CLI init flow (or a previous
+  // bootstrap) already wrote, to protect production deployments from an
+  // accidentally-set env var clobbering live credentials.
+  if (process.env.MOSTLY_BOOTSTRAP_AGENT_TOKEN) {
+    const existingHash = await repos.workspaces.getAgentTokenHash(workspace.id);
+    if (existingHash) {
+      console.warn(
+        'Bootstrap agent token env var set but workspace already has an agent_token_hash; env var ignored',
+      );
+    } else {
+      await repos.workspaces.update(workspace.id, {
+        agent_token_hash: sha256(process.env.MOSTLY_BOOTSTRAP_AGENT_TOKEN),
+        updated_at: new Date().toISOString(),
+      });
+      console.log(`Bootstrap agent token installed for workspace ${workspace.id}`);
+    }
+  }
+
   const app = createApp({
     workspaceId: workspace.id,
-    token: config.token,
     principalService,
     projectService,
     taskService,
     maintenanceService,
+    authService,
   });
 
   console.log(`Mostly server starting on port ${port}...`);

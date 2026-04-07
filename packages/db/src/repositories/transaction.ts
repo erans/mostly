@@ -6,6 +6,8 @@ import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
+import { DrizzleSessionRepository } from './session.js';
+import { DrizzleApiKeyRepository } from './api-key.js';
 
 export class DrizzleLocalTransactionManager implements TransactionManager {
   constructor(private db: MostlyDb) {}
@@ -18,6 +20,8 @@ export class DrizzleLocalTransactionManager implements TransactionManager {
       projects: new DrizzleProjectRepository(this.db),
       principals: new DrizzlePrincipalRepository(this.db),
       workspaces: new DrizzleWorkspaceRepository(this.db),
+      sessions: new DrizzleSessionRepository(this.db),
+      apiKeys: new DrizzleApiKeyRepository(this.db),
     };
     try {
       const result = await fn(ctx);

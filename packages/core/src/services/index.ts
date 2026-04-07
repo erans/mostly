@@ -5,3 +5,4 @@ export type { CreateProjectInput } from './project.js';
 export { TaskService } from './task.js';
 export type { CreateTaskInput, PatchTaskInput } from './task.js';
 export { MaintenanceService } from './maintenance.js';
+export { AuthService } from './auth.js';

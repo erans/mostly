@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 const MCP_PATH = resolve(__dirname, '../../../packages/mcp/dist/index.js');
 const SERVER_URL = process.env.MOSTLY_SERVER_URL ?? process.env.SERVER_URL ?? 'http://localhost:6080';
-const TOKEN = process.env.MOSTLY_TOKEN ?? 'test-token-e2e';
+const TOKEN = process.env.MOSTLY_AGENT_TOKEN ?? 'test-token-e2e';
 const ACTOR = process.env.MOSTLY_ACTOR ?? 'e2e-agent';
 
 interface JsonRpcResponse {
@@ -28,7 +28,7 @@ export class McpTestRunner {
       env: {
         ...process.env,
         MOSTLY_SERVER_URL: SERVER_URL,
-        MOSTLY_TOKEN: TOKEN,
+        MOSTLY_AGENT_TOKEN: TOKEN,
         MOSTLY_ACTOR: ACTOR,
       },
     });

@@ -6,9 +6,26 @@ const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 export function actorMiddleware(): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const method = c.req.method;
+    const authMethod = c.get('authMethod');
 
+    // For human-authenticated requests (session or API key), actorId is already set
+    if (authMethod === 'session' || authMethod === 'api_key') {
+      if (MUTATING_METHODS.has(method)) {
+        // Parse body for route handlers, but don't require actor fields
+        let body: Record<string, unknown>;
+        try {
+          body = await c.req.json();
+        } catch {
+          body = {};
+        }
+        c.set('parsedBody' as any, body);
+      }
+      await next();
+      return;
+    }
+
+    // For agent-authenticated requests, resolve actor from body (same as before)
     if (MUTATING_METHODS.has(method)) {
-      // For mutating requests, resolve actor from request body
       let body: Record<string, unknown>;
       try {
         body = await c.req.json();
@@ -16,7 +33,6 @@ export function actorMiddleware(): MiddlewareHandler<AppEnv> {
         body = {};
       }
 
-      // Store the parsed body so route handlers don't have to re-parse
       c.set('parsedBody' as any, body);
 
       const actorId = body.actor_id as string | undefined;
@@ -55,7 +71,6 @@ export function actorMiddleware(): MiddlewareHandler<AppEnv> {
 
         c.set('actorId', principal.id);
       } catch (err) {
-        // Let domain errors (e.g. NotFoundError) propagate to the error handler
         throw err;
       }
     }

@@ -51,29 +51,17 @@ Apply the database schema to your D1 instance:
 
 This runs all SQL migrations from `packages/db/migrations/`.
 
-## 5. Seed the Database
+## 5. Seed the Workspace
 
-Create a default workspace:
+Create a default workspace (the first — and, until multi-tenancy lands, the only — workspace the Worker will serve):
 
     wrangler d1 execute mostly-db --remote --command "INSERT INTO workspace (id, slug, name, created_at, updated_at) VALUES ('01WORKSPACE000000000000001', 'default', 'Default Workspace', datetime('now'), datetime('now'));"
 
-Copy the workspace ID (`01WORKSPACE000000000000001`) — you'll need it in step 7.
+Copy the workspace ID (`01WORKSPACE000000000000001`) — you'll need it in step 6.
 
-Create your first principal (user or agent):
+Do **not** pre-create a principal by hand. The first-user registration flow (step 9) will do that for you after the Worker is deployed, and it sets a bcrypt password hash the login endpoint can verify — something you cannot easily produce from raw SQL.
 
-    wrangler d1 execute mostly-db --remote --command "INSERT INTO principal (id, workspace_id, handle, kind, display_name, is_active, created_at, updated_at) VALUES ('01PRINCIPAL000000000000001', '01WORKSPACE000000000000001', 'admin', 'human', 'Admin', 1, datetime('now'), datetime('now'));"
-
-## 6. Set the Auth Token
-
-Generate a token and set it as a secret:
-
-    TOKEN=$(openssl rand -hex 32)
-    echo "$TOKEN" | wrangler secret put MOSTLY_TOKEN
-    echo "Your token: $TOKEN"
-
-Save this token — you'll need it to authenticate API requests.
-
-## 7. Set the Workspace ID
+## 6. Set the Workspace ID
 
 In `wrangler.toml`, set the workspace ID from step 5:
 
@@ -82,37 +70,87 @@ In `wrangler.toml`, set the workspace ID from step 5:
 WORKSPACE_ID = "01WORKSPACE000000000000001"
 ```
 
-## 8. Build the Worker
+## 7. Build the Worker
 
 Build the worker bundle:
 
     pnpm --filter @mostly/server build:worker
 
-## 9. Deploy
+## 8. Deploy
 
     wrangler deploy
 
 Wrangler prints the deployed URL, e.g., `https://mostly.<your-subdomain>.workers.dev`.
 
-## 10. Verify
+## 9. Register the First User
 
-Test the deployment:
+The Worker is now live but has no users. Because no principals exist, `POST /v0/auth/register` is open and the first caller becomes the admin. Pick a strong password:
 
-    curl -H "Authorization: Bearer <your-token>" https://mostly.<your-subdomain>.workers.dev/v0/principals
+    curl -X POST https://mostly.<your-subdomain>.workers.dev/v0/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{"handle": "admin", "password": "<pick-something-strong>", "display_name": "Admin"}'
 
-You should see a JSON response with your seeded principal.
+The response sets a session cookie and returns the admin principal. After this point `/v0/auth/register` is locked down to invite-only (unless `workspace.allow_registration` is true).
 
-## 11. Configure MCP Client
+## 10. Create a Personal API Key
 
-To use the deployed API with the MCP server, update `~/.mostly/config`:
+With the admin session cookie from step 9 (or by logging in fresh via `POST /v0/auth/login`), mint a long-lived API key for CLI and HTTP use:
+
+    # Log in — stores the session cookie in a file for the next call.
+    curl -c cookies.txt -X POST https://mostly.<your-subdomain>.workers.dev/v0/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"handle": "admin", "password": "<your-password>"}'
+
+    # Create an API key using the session cookie.
+    curl -b cookies.txt -X POST https://mostly.<your-subdomain>.workers.dev/v0/auth/api-keys \
+      -H "Content-Type: application/json" \
+      -d '{"name": "admin-cli"}'
+
+The response includes a `key` field beginning with `msk_` — **save it now**, it is only shown once.
+
+## 11. (Optional) Install a Workspace Agent Token
+
+If you want agents or CI jobs to authenticate without impersonating a user, seed a shared agent token. The Worker entrypoint does not implement the `MOSTLY_BOOTSTRAP_AGENT_TOKEN` env var that the local node server does, so the cleanest path is to generate a token, hash it, and set `workspace.agent_token_hash` directly:
+
+    TOKEN="mat_$(openssl rand -hex 32)"
+    HASH=$(printf %s "$TOKEN" | openssl dgst -sha256 -hex | awk '{print $2}')
+    wrangler d1 execute mostly-db --remote \
+      --command "UPDATE workspace SET agent_token_hash = '$HASH', updated_at = datetime('now') WHERE id = '01WORKSPACE000000000000001';"
+    echo "Agent token (save this — it is the only copy): $TOKEN"
+
+Agents authenticate by sending this token as a `Bearer` header and including `actor_handle` in every mutating request body.
+
+## 12. Verify
+
+Test the deployment with the API key from step 10:
+
+    curl -H "Authorization: Bearer msk_<your-api-key>" https://mostly.<your-subdomain>.workers.dev/v0/principals
+
+You should see a JSON response listing the admin principal.
+
+## 13. Configure CLI and MCP Clients
+
+Point the CLI and MCP server at the deployed API by editing `~/.mostly/config`:
 
 ```json
 {
   "server_url": "https://mostly.<your-subdomain>.workers.dev",
-  "token": "<your-token>",
+  "api_key": "msk_<your-api-key-from-step-10>"
+}
+```
+
+This is the minimum config for a human user — the CLI and MCP client both use `api_key` when present, and the server resolves your identity from the key. If you also installed an agent token in step 11 and want to run headless jobs without a user account, add `agent_token` and `default_actor` instead (or alongside):
+
+```json
+{
+  "server_url": "https://mostly.<your-subdomain>.workers.dev",
+  "api_key": "msk_...",
+  "agent_token": "mat_...",
   "default_actor": "admin"
 }
 ```
+
+When both are set, `api_key` wins (humans should authenticate as themselves). `agent_token` is only used when `api_key` is missing, and it requires `default_actor` so the server knows which agent principal to record.
 
 Then run `mostly-mcp` as usual — it will connect to the Cloudflare-hosted API.
 
@@ -140,7 +178,10 @@ To use a custom domain instead of `*.workers.dev`:
 Migrations haven't been applied. Run `wrangler d1 migrations apply mostly-db --remote`.
 
 **401 Unauthorized**
-Check that `MOSTLY_TOKEN` is set: `wrangler secret list`.
+Your credentials didn't resolve to a principal. Check that the `Authorization: Bearer msk_...` header is present and spelled correctly, and — if you're using an agent token — that the request body includes `actor_handle` on mutating requests. If the CLI is returning 401 on *every* command (including `mostly api-key list`), the persisted API key is likely stale or revoked; recover by signing in again with `mostly login` or by minting a new key from the web UI's API Keys page.
+
+**403 Forbidden**
+`POST /v0/auth/register` returns 403 with `code: "forbidden"` once a human principal exists and `workspace.allow_registration` is false. That's the intended locked-down state after the first admin registers — use `mostly invite <handle>` from an authenticated admin (or the web Invite User flow) to add subsequent users.
 
 **500 Internal Server Error**
 Check worker logs: `wrangler tail`.

@@ -4,6 +4,10 @@ import { serveCommand } from './commands/serve.js';
 import { principalCommand } from './commands/principal.js';
 import { projectCommand } from './commands/project.js';
 import { taskCommand } from './commands/task.js';
+import { loginCommand } from './commands/login.js';
+import { logoutCommand } from './commands/logout.js';
+import { apiKeyCommand } from './commands/api-key.js';
+import { inviteCommand } from './commands/invite.js';
 
 const program = new Command()
   .name('mostly')
@@ -12,6 +16,10 @@ const program = new Command()
 
 program.addCommand(initCommand());
 program.addCommand(serveCommand());
+program.addCommand(loginCommand());
+program.addCommand(logoutCommand());
+program.addCommand(apiKeyCommand());
+program.addCommand(inviteCommand());
 program.addCommand(principalCommand());
 program.addCommand(projectCommand());
 program.addCommand(taskCommand());

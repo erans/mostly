@@ -1,5 +1,5 @@
 const SERVER_URL = process.env.MOSTLY_SERVER_URL ?? process.env.SERVER_URL ?? 'http://localhost:6080';
-const TOKEN = process.env.MOSTLY_TOKEN ?? 'test-token-e2e';
+const TOKEN = process.env.MOSTLY_AGENT_TOKEN ?? 'test-token-e2e';
 
 export interface ApiResponse<T = any> {
   status: number;

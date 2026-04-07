@@ -13,7 +13,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request('/v0/principals', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -35,7 +35,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request('/v0/principals', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -53,7 +53,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request('/v0/principals', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ describe('Principal Routes', () => {
       await env.app.request('/v0/principals', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -86,7 +86,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request('/v0/principals', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -104,7 +104,7 @@ describe('Principal Routes', () => {
   describe('GET /v0/principals/:id', () => {
     it('returns principal by ULID', async () => {
       const res = await env.app.request(`/v0/principals/${env.testPrincipalId}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -113,7 +113,7 @@ describe('Principal Routes', () => {
 
     it('returns principal by handle', async () => {
       const res = await env.app.request(`/v0/principals/${env.testPrincipalHandle}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -122,7 +122,7 @@ describe('Principal Routes', () => {
 
     it('returns 404 for non-existent principal', async () => {
       const res = await env.app.request('/v0/principals/nonexistent-handle', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(404);
       const body = await res.json();
@@ -135,7 +135,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request(`/v0/principals/${env.testPrincipalId}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -152,7 +152,7 @@ describe('Principal Routes', () => {
       const res = await env.app.request(`/v0/principals/${env.testPrincipalHandle}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ describe('Principal Routes', () => {
   describe('GET /v0/principals', () => {
     it('lists principals', async () => {
       const res = await env.app.request('/v0/principals', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -185,7 +185,7 @@ describe('Principal Routes', () => {
         await env.app.request('/v0/principals', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.testToken}`,
+            Authorization: `Bearer ${env.testAgentToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -197,7 +197,7 @@ describe('Principal Routes', () => {
       }
 
       const res = await env.app.request('/v0/principals?limit=2', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();

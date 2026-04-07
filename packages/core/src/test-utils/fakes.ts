@@ -1,11 +1,13 @@
-import type { Workspace, Principal, Project, Task, TaskUpdate } from '@mostly/types';
+import type { Workspace, Principal, Project, Task, TaskUpdate, Session, ApiKey } from '@mostly/types';
 import { ConflictError, NotFoundError } from '@mostly/types';
 import type {
-  WorkspaceRepository, WorkspaceCreateData,
+  WorkspaceRepository, WorkspaceCreateData, WorkspacePatchData,
   PrincipalRepository, PrincipalCreateData, PrincipalPatchData,
   ProjectRepository, ProjectCreateData, ProjectPatchData,
   TaskRepository, TaskCreateData, TaskUpdateData,
   TaskUpdateRepository, TaskUpdateCreateData, AgentActionContextCreateData,
+  SessionRepository, SessionCreateData,
+  ApiKeyRepository, ApiKeyCreateData,
   TransactionManager, TransactionContext,
   PaginatedResult, TaskListFilters,
 } from '../repositories/index.js';
@@ -29,6 +31,7 @@ function paginate<T extends { id: string }>(
 
 export class FakeWorkspaceRepository implements WorkspaceRepository {
   private store = new Map<string, Workspace>();
+  private agentTokenHashes = new Map<string, string | null>();
 
   async findById(id: string): Promise<Workspace | null> {
     return this.store.get(id) ?? null;
@@ -47,14 +50,41 @@ export class FakeWorkspaceRepository implements WorkspaceRepository {
   }
 
   async create(data: WorkspaceCreateData): Promise<Workspace> {
-    const ws: Workspace = { ...data };
+    const ws: Workspace = {
+      id: data.id,
+      slug: data.slug,
+      name: data.name,
+      allow_registration: data.allow_registration ?? false,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
     this.store.set(ws.id, ws);
+    if (data.agent_token_hash !== undefined) {
+      this.agentTokenHashes.set(ws.id, data.agent_token_hash);
+    }
     return ws;
+  }
+
+  async update(id: string, data: WorkspacePatchData): Promise<Workspace> {
+    const existing = this.store.get(id);
+    if (!existing) throw new NotFoundError('workspace', id);
+    const { agent_token_hash, ...rest } = data;
+    const updated: Workspace = { ...existing, ...rest };
+    this.store.set(id, updated);
+    if (agent_token_hash !== undefined) {
+      this.agentTokenHashes.set(id, agent_token_hash ?? null);
+    }
+    return updated;
+  }
+
+  async getAgentTokenHash(id: string): Promise<string | null> {
+    return this.agentTokenHashes.get(id) ?? null;
   }
 }
 
 export class FakePrincipalRepository implements PrincipalRepository {
   private store = new Map<string, Principal>();
+  private passwordHashes = new Map<string, string | null>();
 
   async findById(id: string): Promise<Principal | null> {
     return this.store.get(id) ?? null;
@@ -72,18 +102,34 @@ export class FakePrincipalRepository implements PrincipalRepository {
     return paginate(items, cursor, limit);
   }
 
+  async listHumans(workspaceId: string): Promise<Principal[]> {
+    return [...this.store.values()].filter(
+      (p) => p.workspace_id === workspaceId && p.kind === 'human',
+    );
+  }
+
   async create(data: PrincipalCreateData): Promise<Principal> {
-    const p = { ...data, metadata_json: data.metadata_json ?? null } as Principal;
+    const { password_hash, ...rest } = data;
+    const p = { ...rest, metadata_json: data.metadata_json ?? null } as Principal;
     this.store.set(p.id, p);
+    this.passwordHashes.set(p.id, password_hash);
     return p;
   }
 
   async update(id: string, data: PrincipalPatchData): Promise<Principal> {
     const existing = this.store.get(id);
     if (!existing) throw new NotFoundError('principal', id);
-    const updated = { ...existing, ...data } as Principal;
+    const { password_hash, ...rest } = data;
+    const updated = { ...existing, ...rest } as Principal;
     this.store.set(id, updated);
+    if (password_hash !== undefined) {
+      this.passwordHashes.set(id, password_hash);
+    }
     return updated;
+  }
+
+  async getPasswordHash(id: string): Promise<string | null> {
+    return this.passwordHashes.get(id) ?? null;
   }
 }
 
@@ -200,6 +246,76 @@ export class FakeTaskUpdateRepository implements TaskUpdateRepository {
     _contexts: AgentActionContextCreateData[],
   ): Promise<TaskUpdate> {
     return this.create(data);
+  }
+}
+
+export class FakeSessionRepository implements SessionRepository {
+  private store = new Map<string, Session>();
+
+  async findById(id: string): Promise<Session | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async create(data: SessionCreateData): Promise<Session> {
+    const s = { ...data } as Session;
+    this.store.set(s.id, s);
+    return s;
+  }
+
+  async updateExpiresAt(id: string, expiresAt: string): Promise<void> {
+    const s = this.store.get(id);
+    if (s) this.store.set(id, { ...s, expires_at: expiresAt });
+  }
+
+  async delete(id: string): Promise<void> {
+    this.store.delete(id);
+  }
+
+  async deleteByPrincipalId(principalId: string): Promise<void> {
+    for (const [id, s] of this.store) {
+      if (s.principal_id === principalId) this.store.delete(id);
+    }
+  }
+}
+
+export class FakeApiKeyRepository implements ApiKeyRepository {
+  private store = new Map<string, ApiKey & { key_hash: string }>();
+
+  async findByHash(keyHash: string): Promise<(ApiKey & { key_hash: string }) | null> {
+    for (const k of this.store.values()) {
+      if (k.key_hash === keyHash) return k;
+    }
+    return null;
+  }
+
+  async findByPrincipalAndName(principalId: string, name: string): Promise<ApiKey | null> {
+    for (const k of this.store.values()) {
+      if (k.principal_id === principalId && k.name === name) return k;
+    }
+    return null;
+  }
+
+  async listByPrincipal(principalId: string): Promise<ApiKey[]> {
+    return [...this.store.values()]
+      .filter((k) => k.principal_id === principalId)
+      .map(({ key_hash, ...rest }) => rest);
+  }
+
+  async create(data: ApiKeyCreateData): Promise<ApiKey> {
+    const full = { ...data };
+    this.store.set(data.id, full);
+    const { key_hash, ...apiKey } = full;
+    return apiKey;
+  }
+
+  async deactivate(id: string): Promise<void> {
+    const k = this.store.get(id);
+    if (k) this.store.set(id, { ...k, is_active: false });
+  }
+
+  async updateLastUsed(id: string, lastUsedAt: string): Promise<void> {
+    const k = this.store.get(id);
+    if (k) this.store.set(id, { ...k, last_used_at: lastUsedAt });
   }
 }
 

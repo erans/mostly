@@ -36,6 +36,7 @@ describe('DrizzlePrincipalRepository', () => {
       display_name: 'Alice',
       metadata_json: null,
       is_active: true,
+      is_admin: false,
       created_at: now,
       updated_at: now,
     });

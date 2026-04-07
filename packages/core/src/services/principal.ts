@@ -25,7 +25,9 @@ export class PrincipalService {
       kind: input.kind,
       display_name: input.display_name ?? null,
       metadata_json: input.metadata_json ?? null,
+      password_hash: null,
       is_active: true,
+      is_admin: false,
       created_at: now,
       updated_at: now,
     });
