@@ -32,7 +32,7 @@ export function CommandPalette({ open, onClose, onCreateTask }: CommandPalettePr
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg">
         <Command
           className="overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
-          shouldFilter={true}
+          onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
         >
           <Command.Input
             value={search}
@@ -47,12 +47,21 @@ export function CommandPalette({ open, onClose, onCreateTask }: CommandPalettePr
 
             <Command.Group heading="Actions" className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               <Command.Item
+                value="create task"
                 onSelect={() => { onClose(); onCreateTask(); }}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-text data-[selected]:bg-accent/10"
               >
                 Create task
               </Command.Item>
               <Command.Item
+                value="show blocked tasks"
+                onSelect={() => { onClose(); navigate('/views/blocked'); }}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-text data-[selected]:bg-accent/10"
+              >
+                Show blocked
+              </Command.Item>
+              <Command.Item
+                value="toggle theme dark light"
                 onSelect={() => { onClose(); toggleTheme(); }}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-text data-[selected]:bg-accent/10"
               >
@@ -62,7 +71,7 @@ export function CommandPalette({ open, onClose, onCreateTask }: CommandPalettePr
 
             {tasks.length > 0 && (
               <Command.Group heading="Tasks" className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                {tasks.slice(0, 10).map((task) => (
+                {tasks.map((task) => (
                   <Command.Item
                     key={task.id}
                     value={`${task.key} ${task.title}`}
