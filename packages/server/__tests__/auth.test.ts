@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { createTestApp } from './helpers.js';
 
+// Pull the session cookie off a response, asserting that one was actually
+// set. Using the non-null operator directly would throw an unhelpful
+// TypeError if the server ever stopped emitting the cookie — this gives a
+// clear assertion failure instead.
+function getSessionCookie(res: Response): string {
+  const setCookie = res.headers.get('set-cookie');
+  expect(setCookie).not.toBeNull();
+  return setCookie!.split(';')[0];
+}
+
 describe('auth routes', () => {
   describe('POST /v0/auth/register', () => {
     it('registers first user as admin', async () => {
@@ -41,7 +51,7 @@ describe('auth routes', () => {
       expect(res.status).toBe(403);
     });
 
-    it('validates request body', async () => {
+    it('validates request body — rejects empty handle and short password', async () => {
       const { app } = createTestApp();
 
       const res = await app.request('/v0/auth/register', {
@@ -50,6 +60,14 @@ describe('auth routes', () => {
         body: JSON.stringify({ handle: '', password: 'short' }),
       });
       expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('invalid_argument');
+      // Both invalid fields should be flagged — a regression that stops
+      // validating either one should still fail this test.
+      expect(body.error.details).toBeDefined();
+      expect(Object.keys(body.error.details)).toEqual(
+        expect.arrayContaining(['handle', 'password']),
+      );
     });
 
     it('returns 400 for malformed JSON body (not 500)', async () => {
@@ -129,7 +147,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'alice', password: 'password123' }),
       });
-      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+      const sessionCookie = getSessionCookie(regRes);
 
       const res = await app.request('/v0/auth/me', {
         headers: { Cookie: sessionCookie },
@@ -163,7 +181,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'alice', password: 'password123' }),
       });
-      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+      const sessionCookie = getSessionCookie(regRes);
 
       const logoutRes = await app.request('/v0/auth/logout', {
         method: 'POST',
@@ -194,7 +212,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'alice', password: 'password123' }),
       });
-      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+      const sessionCookie = getSessionCookie(regRes);
 
       // Create API key
       const createRes = await app.request('/v0/auth/api-keys', {
@@ -224,7 +242,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'alice', password: 'password123' }),
       });
-      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+      const sessionCookie = getSessionCookie(regRes);
 
       await app.request('/v0/auth/api-keys', {
         method: 'POST',
@@ -239,8 +257,11 @@ describe('auth routes', () => {
       const listBody = await listRes.json();
       expect(listBody.data.items).toHaveLength(1);
       expect(listBody.data.items[0].name).toBe('key1');
-      // Full key must NOT be in the list (only on creation)
-      expect(listBody.data.items[0].key).toBeUndefined();
+      // Full key must NOT be in the list under any key name — a shape-based
+      // check catches regressions where the field is renamed to e.g. `fullKey`
+      // but still leaked. `toBeUndefined()` would silently false-pass on a rename.
+      expect(Object.keys(listBody.data.items[0])).not.toContain('key');
+      expect(Object.keys(listBody.data.items[0])).not.toContain('fullKey');
     });
 
     it('revokes an API key', async () => {
@@ -251,7 +272,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'alice', password: 'password123' }),
       });
-      const sessionCookie = regRes.headers.get('set-cookie')!.split(';')[0];
+      const sessionCookie = getSessionCookie(regRes);
 
       const createRes = await app.request('/v0/auth/api-keys', {
         method: 'POST',
@@ -287,6 +308,59 @@ describe('auth routes', () => {
       // Auth is checked BEFORE body validation, so this is 401 (not 400)
       expect(res.status).toBe(401);
     });
+
+    it('refuses cross-user revocation — user B cannot delete user A\'s key', async () => {
+      const { app } = createTestApp();
+
+      // Admin (first user)
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      // Admin invites Bob
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'bob' }),
+      });
+      const inviteToken = (await inviteRes.json()).data.invite_token;
+
+      // Bob accepts — gets his own session
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, password: 'bob-pass' }),
+      });
+      const bobCookie = getSessionCookie(acceptRes);
+
+      // Admin creates an API key for herself
+      const createRes = await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'alice-key' }),
+      });
+      const aliceKey = await createRes.json();
+      const aliceKeyId = aliceKey.data.id;
+      const aliceFullKey = aliceKey.data.key;
+
+      // Bob tries to revoke Alice's key — must fail as 404 (not owned by bob)
+      const delRes = await app.request(`/v0/auth/api-keys/${aliceKeyId}`, {
+        method: 'DELETE',
+        headers: { Cookie: bobCookie },
+      });
+      expect(delRes.status).toBe(404);
+
+      // Alice's key must still authenticate — proving it wasn't revoked
+      const meRes = await app.request('/v0/auth/me', {
+        headers: { Authorization: `Bearer ${aliceFullKey}` },
+      });
+      expect(meRes.status).toBe(200);
+      const meBody = await meRes.json();
+      expect(meBody.data.handle).toBe('alice');
+    });
   });
 
   describe('invites', () => {
@@ -299,7 +373,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'admin', password: 'password123' }),
       });
-      const adminCookie = adminRes.headers.get('set-cookie')!.split(';')[0];
+      const adminCookie = getSessionCookie(adminRes);
 
       // Create invite
       const inviteRes = await app.request('/v0/auth/invite', {
@@ -334,7 +408,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: 'admin', password: 'password123' }),
       });
-      const adminCookie = adminRes.headers.get('set-cookie')!.split(';')[0];
+      const adminCookie = getSessionCookie(adminRes);
 
       // Admin invites a regular user
       const inviteRes = await app.request('/v0/auth/invite', {
@@ -350,7 +424,7 @@ describe('auth routes', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: inviteToken, password: 'regular-pass' }),
       });
-      const regularCookie = acceptRes.headers.get('set-cookie')!.split(';')[0];
+      const regularCookie = getSessionCookie(acceptRes);
 
       // Regular user tries to invite someone — should be forbidden
       const res = await app.request('/v0/auth/invite', {
