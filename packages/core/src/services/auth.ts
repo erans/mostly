@@ -1,4 +1,5 @@
 import { hash, compare } from 'bcryptjs';
+import { timingSafeEqual } from 'crypto';
 import {
   generateId, ID_PREFIXES,
   InvalidArgumentError, NotFoundError, UnauthorizedError, ForbiddenError, ConflictError,
@@ -140,7 +141,7 @@ export class AuthService {
     const now = new Date().toISOString();
 
     const apiKey = await this.apiKeys.create({
-      id: `key_${fullKey.slice(4, 12)}${Date.now().toString(36)}`,
+      id: generateId(ID_PREFIXES.apiKey),
       principal_id: principalId,
       workspace_id: workspaceId,
       name,
@@ -184,7 +185,9 @@ export class AuthService {
   async validateAgentToken(workspaceId: string, token: string): Promise<boolean> {
     const storedHash = await this.workspaces.getAgentTokenHash(workspaceId);
     if (!storedHash) return false;
-    return sha256(token) === storedHash;
+    const computed = sha256(token);
+    if (computed.length !== storedHash.length) return false;
+    return timingSafeEqual(Buffer.from(computed), Buffer.from(storedHash));
   }
 
   // --- Invites ---
@@ -233,8 +236,8 @@ export class AuthService {
 
     let targetPrincipal: Principal | null = null;
     for (const p of allHumans) {
-      const meta = p.metadata_json as Record<string, unknown> | null;
-      if (meta?.invite_token_hash === tokenHash) {
+      const meta = p.metadata_json;
+      if (meta && typeof meta === 'object' && 'invite_token_hash' in meta && meta.invite_token_hash === tokenHash) {
         targetPrincipal = p;
         break;
       }
@@ -243,8 +246,11 @@ export class AuthService {
     if (!targetPrincipal) throw new UnauthorizedError('Invalid or expired invite token');
 
     // Check expiry
-    const meta = targetPrincipal.metadata_json as Record<string, unknown>;
-    const expiresAt = meta.invite_expires_at as string;
+    const meta = targetPrincipal.metadata_json;
+    if (!meta || typeof meta !== 'object' || !('invite_expires_at' in meta) || typeof meta.invite_expires_at !== 'string') {
+      throw new UnauthorizedError('Invalid or expired invite token');
+    }
+    const expiresAt = meta.invite_expires_at;
     if (new Date(expiresAt) <= new Date()) {
       throw new UnauthorizedError('Invite token has expired');
     }
