@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { loadConfig } from '../config.js';
+import { loadConfig, requireAuth } from '../config.js';
 import { MostlyClient } from '../client.js';
 import { formatTask, formatTaskList } from '../output.js';
 
@@ -33,7 +33,8 @@ export function taskCommand(): Command {
     .action(async (opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const body: Record<string, unknown> = {
           title: opts.title,
           type: opts.type,
@@ -65,7 +66,8 @@ export function taskCommand(): Command {
     .action(async (opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const params: Record<string, string> = {};
         if (opts.status) params.status = opts.status;
         if (opts.assignee) params.assignee_id = opts.assignee;
@@ -91,7 +93,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const result = await client.get(`/v0/tasks/${id}`);
         formatTask(result.data, opts);
       } catch (err: any) {
@@ -115,7 +118,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         // Fetch task first to get current version
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = { expected_version: task.version };
@@ -143,7 +147,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = { expected_version: task.version };
         if (opts.ttl) body.claim_expires_at = parseTTL(opts.ttl);
@@ -166,7 +171,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = { expected_version: task.version };
         if (opts.ttl) body.claim_expires_at = parseTTL(opts.ttl);
@@ -188,7 +194,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const result = await client.post(`/v0/tasks/${id}/release-claim`, {
           expected_version: task.version,
@@ -210,7 +217,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const result = await client.post(`/v0/tasks/${id}/transition`, {
           to_status: 'in_progress',
@@ -234,7 +242,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const result = await client.post(`/v0/tasks/${id}/transition`, {
           to_status: 'blocked',
@@ -264,7 +273,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = {
           to_status: 'closed',
@@ -290,7 +300,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const { data: task } = await client.get(`/v0/tasks/${id}`);
         const body: Record<string, unknown> = {
           to_status: 'canceled',
@@ -318,7 +329,8 @@ export function taskCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const body: Record<string, unknown> = {
           kind: opts.kind,
           body: opts.body,
@@ -348,7 +360,8 @@ export function taskCommand(): Command {
     .action(async (opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const result = await client.post('/v0/maintenance/reap-expired-claims', {});
         if (!opts.quiet) {
           if (opts.json) {

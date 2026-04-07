@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { loadConfig } from '../config.js';
+import { loadConfig, requireAuth } from '../config.js';
 import { MostlyClient } from '../client.js';
 import { formatProject, formatProjectList } from '../output.js';
 
@@ -18,7 +18,8 @@ export function projectCommand(): Command {
     .action(async (opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const result = await client.post('/v0/projects', {
           key: opts.key,
           name: opts.name,
@@ -40,7 +41,8 @@ export function projectCommand(): Command {
     .action(async (opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const result = await client.get('/v0/projects');
         formatProjectList(result.data, opts);
       } catch (err: any) {
@@ -58,7 +60,8 @@ export function projectCommand(): Command {
     .action(async (id, opts) => {
       try {
         const config = loadConfig({ actor: opts.actor });
-        const client = new MostlyClient(config.serverUrl, config.token, config.actor);
+        requireAuth(config);
+        const client = MostlyClient.fromConfig(config);
         const result = await client.get(`/v0/projects/${id}`);
         formatProject(result.data, opts);
       } catch (err: any) {
