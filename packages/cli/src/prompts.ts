@@ -41,6 +41,8 @@ export async function promptPassword(message: string): Promise<string> {
       input.setRawMode(wasRaw);
       input.pause();
       input.removeListener('data', onData);
+      input.removeListener('error', onError);
+      input.removeListener('end', onEnd);
     };
 
     const onData = (chunk: string) => {
@@ -77,7 +79,21 @@ export async function promptPassword(message: string): Promise<string> {
       }
     };
 
+    const onError = (err: Error) => {
+      cleanup();
+      output.write('\n');
+      reject(err);
+    };
+
+    const onEnd = () => {
+      cleanup();
+      output.write('\n');
+      reject(new Error('stdin closed'));
+    };
+
     input.on('data', onData);
+    input.on('error', onError);
+    input.on('end', onEnd);
   });
 }
 

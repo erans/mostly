@@ -30,7 +30,7 @@ export interface ResolvedConfig {
   actor?: string;
 }
 
-const DEFAULT_SERVER_URL = 'http://localhost:6080';
+export const DEFAULT_SERVER_URL = 'http://localhost:6080';
 
 export function getConfigDir(): string {
   return join(homedir(), '.mostly');
@@ -83,24 +83,13 @@ export function loadConfig(overrides?: {
     file.server_url ??
     DEFAULT_SERVER_URL;
 
-  const apiKey =
-    overrides?.apiKey ??
-    process.env.MOSTLY_API_KEY ??
-    file.api_key ??
-    undefined;
-
+  const apiKey = overrides?.apiKey ?? process.env.MOSTLY_API_KEY ?? file.api_key;
   const agentToken =
-    overrides?.agentToken ??
-    process.env.MOSTLY_AGENT_TOKEN ??
-    file.agent_token ??
-    undefined;
+    overrides?.agentToken ?? process.env.MOSTLY_AGENT_TOKEN ?? file.agent_token;
+  const actor = overrides?.actor ?? process.env.MOSTLY_ACTOR ?? file.default_actor;
 
-  const actor =
-    overrides?.actor ??
-    process.env.MOSTLY_ACTOR ??
-    file.default_actor ??
-    undefined;
-
+  // Normalize empty strings to undefined so `api_key=""` in a config file
+  // doesn't count as "authenticated".
   return {
     serverUrl,
     apiKey: apiKey || undefined,
