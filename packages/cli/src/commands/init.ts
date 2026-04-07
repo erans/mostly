@@ -70,9 +70,15 @@ export function initCommand(): Command {
       // creating the new one. Without this, a half-finished prior init (e.g.
       // admin was created but config write failed) leaves the DB in a state
       // where `register` throws ConflictError on the second try.
+      //
+      // SQLite runs in WAL mode, so we also need to remove the -wal and -shm
+      // sidecar files — otherwise a crashed prior init could leave them
+      // pointing at the now-deleted database file.
       if (opts.force) {
         removeIfExists(configPath);
         removeIfExists(dbPath);
+        removeIfExists(`${dbPath}-wal`);
+        removeIfExists(`${dbPath}-shm`);
         console.log('Force mode — cleared existing config and database.');
       }
 
@@ -126,7 +132,7 @@ export function initCommand(): Command {
       );
 
       let admin;
-      let sessionId: string | undefined;
+      let sessionId: string;
       try {
         const result = await authService.register(workspace.id, {
           handle: adminHandle,
