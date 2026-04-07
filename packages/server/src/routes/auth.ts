@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import type { z } from 'zod';
 import {
   RegisterRequest,
   LoginRequest,
@@ -20,9 +21,12 @@ const COOKIE_OPTIONS = {
 };
 
 function getCookieOptions(c: Context<AppEnv>) {
+  // Tie `secure` to the actual scheme rather than the hostname. This
+  // correctly handles localhost, [::1], 0.0.0.0, and any other dev address
+  // served over plain HTTP — browsers reject `Secure` cookies on http://
+  // origins, which would silently break login.
   const url = new URL(c.req.url);
-  const secure = url.hostname !== 'localhost' && url.hostname !== '127.0.0.1';
-  return { ...COOKIE_OPTIONS, secure };
+  return { ...COOKIE_OPTIONS, secure: url.protocol === 'https:' };
 }
 
 // Helper: require human authentication (session or API key only — not agent token).
@@ -42,7 +46,7 @@ async function requireHumanAuth(
     }
   }
 
-  // Try Bearer token (API key only)
+  // Try Bearer token (API key only — agent tokens identify a workspace, not a user)
   const authHeader = c.req.header('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
@@ -55,7 +59,20 @@ async function requireHumanAuth(
   throw new UnauthorizedError('Authentication required');
 }
 
-function parseBody<T>(parsed: { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } }): T {
+// Read JSON body and validate against a Zod schema in a single step.
+// Treats malformed/missing JSON as an empty object so the schema produces a
+// proper 400 with field-level details, not a 500.
+async function parseJsonBody<S extends z.ZodTypeAny>(
+  c: Context<AppEnv>,
+  schema: S,
+): Promise<z.infer<S>> {
+  let raw: unknown;
+  try {
+    raw = await c.req.json();
+  } catch {
+    raw = {};
+  }
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     const details: Record<string, string> = {};
     for (const issue of parsed.error.issues) {
@@ -73,8 +90,7 @@ export function authRoutes(): Hono<AppEnv> {
 
   // POST /v0/auth/register
   routes.post('/register', async (c) => {
-    const body = await c.req.json();
-    const data = parseBody(RegisterRequest.safeParse(body));
+    const data = await parseJsonBody(c, RegisterRequest);
 
     const authService = c.get('authService');
     const workspaceId = c.get('workspaceId');
@@ -87,8 +103,7 @@ export function authRoutes(): Hono<AppEnv> {
 
   // POST /v0/auth/login
   routes.post('/login', async (c) => {
-    const body = await c.req.json();
-    const data = parseBody(LoginRequest.safeParse(body));
+    const data = await parseJsonBody(c, LoginRequest);
 
     const authService = c.get('authService');
     const workspaceId = c.get('workspaceId');
@@ -101,8 +116,7 @@ export function authRoutes(): Hono<AppEnv> {
 
   // POST /v0/auth/accept-invite
   routes.post('/accept-invite', async (c) => {
-    const body = await c.req.json();
-    const data = parseBody(AcceptInviteRequest.safeParse(body));
+    const data = await parseJsonBody(c, AcceptInviteRequest);
 
     const authService = c.get('authService');
 
@@ -135,12 +149,10 @@ export function authRoutes(): Hono<AppEnv> {
 
   // POST /v0/auth/api-keys
   routes.post('/api-keys', async (c) => {
-    const body = await c.req.json();
-    const data = parseBody(CreateApiKeyRequest.safeParse(body));
-
     const { principalId, workspaceId } = await requireHumanAuth(c);
-    const authService = c.get('authService');
+    const data = await parseJsonBody(c, CreateApiKeyRequest);
 
+    const authService = c.get('authService');
     const { apiKey, fullKey } = await authService.createApiKey(principalId, workspaceId, data.name);
     return c.json({ data: { ...apiKey, key: fullKey } }, 201);
   });
@@ -166,12 +178,10 @@ export function authRoutes(): Hono<AppEnv> {
 
   // POST /v0/auth/invite
   routes.post('/invite', async (c) => {
-    const body = await c.req.json();
-    const data = parseBody(InviteRequest.safeParse(body));
-
     const { principalId, workspaceId } = await requireHumanAuth(c);
-    const authService = c.get('authService');
+    const data = await parseJsonBody(c, InviteRequest);
 
+    const authService = c.get('authService');
     const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, data);
     return c.json({ data: { principal, invite_token: inviteToken } }, 201);
   });
