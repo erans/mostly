@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import type { ApiKey } from '@mostly/types';
 import { loadConfig, requireAuth } from '../config.js';
 import { MostlyClient } from '../client.js';
 import { formatTable, formatCard, output, type OutputOptions } from '../output.js';
@@ -85,15 +86,13 @@ export function apiKeyCommand(): Command {
           return;
         }
         // Normalize nullable fields so formatTable doesn't render `null`.
-        const rows = items.map(
-          (k: { name: string; key_prefix: string; is_active: boolean; created_at: string; last_used_at: string | null }) => ({
-            name: k.name,
-            key_prefix: `msk_${k.key_prefix}…`,
-            is_active: k.is_active ? 'yes' : 'no',
-            created_at: k.created_at,
-            last_used_at: k.last_used_at ?? 'never',
-          }),
-        );
+        const rows = items.map((k: ApiKey) => ({
+          name: k.name,
+          key_prefix: `msk_${k.key_prefix}…`,
+          is_active: k.is_active ? 'yes' : 'no',
+          created_at: k.created_at,
+          last_used_at: k.last_used_at ?? 'never',
+        }));
         console.log(formatTable(rows, API_KEY_COLUMNS));
       } catch (err) {
         console.error((err as Error).message);
