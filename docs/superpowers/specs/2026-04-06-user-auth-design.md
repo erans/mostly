@@ -1,7 +1,7 @@
 # User Authentication & Sign-Up — Design Spec
 
 **Date:** 2026-04-06
-**Status:** Approved
+**Status:** Implemented (2026-04-07)
 
 ## Purpose
 
