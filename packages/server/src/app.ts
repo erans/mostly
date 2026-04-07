@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
 import { errorHandler, authMiddleware, actorMiddleware } from './middleware/index.js';
-import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes } from './routes/index.js';
+import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes, authRoutes } from './routes/index.js';
 
 export type AuthMethod = 'session' | 'api_key' | 'agent_token';
 
@@ -51,8 +51,11 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     await next();
   });
 
+  // Auth routes — mounted BEFORE the auth middleware so register/login can run unauthenticated.
+  // The authenticated routes inside (me, logout, api-keys, invite) check auth themselves.
+  app.route('/v0/auth', authRoutes());
+
   // Auth middleware — validates session cookie, API key, or agent token
-  // Auth routes (login/register) will be mounted before this in Task 9
   app.use('/v0/*', authMiddleware());
 
   // Actor resolution — resolves actor from body on mutating requests (agents only)
