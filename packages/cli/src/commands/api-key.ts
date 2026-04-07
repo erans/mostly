@@ -114,7 +114,7 @@ export function apiKeyCommand(): Command {
 
         // Server DELETE is by id. Look it up via the list endpoint.
         const listRes = await client.get('/v0/auth/api-keys');
-        const items: { id: string; name: string }[] = listRes?.data?.items ?? [];
+        const items: ApiKey[] = listRes?.data?.items ?? [];
         const match = items.find((k) => k.name === name);
         if (!match) {
           console.error(`API key "${name}" not found.`);
