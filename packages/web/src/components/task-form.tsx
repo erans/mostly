@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import type { TaskType } from '@mostly/types';
+import { TaskType } from '@mostly/types';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useProjects } from '@/hooks/use-projects';
 
@@ -39,8 +39,8 @@ export function TaskForm({ onClose, defaultProjectId }: TaskFormProps) {
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-bold text-text">New Task</h3>
-          <button type="button" onClick={onClose}>
-            <X size={16} className="text-text-muted hover:text-text" />
+          <button type="button" onClick={onClose} aria-label="Close">
+            <X size={16} className="text-text-muted" />
           </button>
         </div>
 
@@ -60,7 +60,7 @@ export function TaskForm({ onClose, defaultProjectId }: TaskFormProps) {
             onChange={(e) => setType(e.target.value as TaskType)}
             className="flex-1 rounded border border-border bg-bg px-2 py-1.5 text-[12px] text-text focus:outline-none"
           >
-            {['feature', 'bug', 'chore', 'research', 'incident', 'question'].map((t) => (
+            {Object.values(TaskType).map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
