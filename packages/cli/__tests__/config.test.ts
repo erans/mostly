@@ -6,6 +6,9 @@ import {
   getConfigDir,
   getConfigPath,
   getDbPath,
+  readConfig,
+  writeConfig,
+  updateConfig,
 } from '../src/config.js';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -13,13 +16,19 @@ import { join } from 'path';
 // Mock fs module
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
   readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  renameSync: vi.fn(),
 }));
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
 
 const mockedExistsSync = vi.mocked(existsSync);
+const mockedMkdirSync = vi.mocked(mkdirSync);
 const mockedReadFileSync = vi.mocked(readFileSync);
+const mockedWriteFileSync = vi.mocked(writeFileSync);
+const mockedRenameSync = vi.mocked(renameSync);
 
 describe('config', () => {
   const home = homedir();
@@ -27,7 +36,10 @@ describe('config', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     mockedExistsSync.mockReset();
+    mockedMkdirSync.mockReset();
     mockedReadFileSync.mockReset();
+    mockedWriteFileSync.mockReset();
+    mockedRenameSync.mockReset();
   });
 
   afterEach(() => {
@@ -225,6 +237,183 @@ describe('config', () => {
       // No MOSTLY_ACTOR
       const config = loadConfig();
       expect(() => requireAuth(config)).not.toThrow();
+    });
+  });
+
+  describe('readConfig', () => {
+    it('returns empty object when config file does not exist', () => {
+      mockedExistsSync.mockReturnValue(false);
+      expect(readConfig()).toEqual({});
+    });
+
+    it('returns parsed config when file exists', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(
+        JSON.stringify({
+          server_url: 'http://example.com',
+          api_key: 'msk_abc',
+          default_actor: 'alice',
+        }),
+      );
+      expect(readConfig()).toEqual({
+        server_url: 'http://example.com',
+        api_key: 'msk_abc',
+        default_actor: 'alice',
+      });
+    });
+
+    it('returns empty object when file contents are not an object', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(JSON.stringify(['not', 'an', 'object']));
+      expect(readConfig()).toEqual({});
+    });
+
+    it('returns empty object when file contents are malformed JSON', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue('{ not valid');
+      expect(readConfig()).toEqual({});
+    });
+  });
+
+  describe('writeConfig', () => {
+    it('creates the config directory when it does not exist', () => {
+      // Dir missing, then tmp doesn't matter
+      mockedExistsSync.mockReturnValue(false);
+
+      writeConfig({ server_url: 'http://x' });
+
+      expect(mockedMkdirSync).toHaveBeenCalledWith(join(home, '.mostly'), { recursive: true });
+    });
+
+    it('does not create the config directory when it already exists', () => {
+      mockedExistsSync.mockReturnValue(true);
+
+      writeConfig({ server_url: 'http://x' });
+
+      expect(mockedMkdirSync).not.toHaveBeenCalled();
+    });
+
+    it('writes atomically via tmp file + rename with mode 0600', () => {
+      mockedExistsSync.mockReturnValue(true);
+
+      writeConfig({ server_url: 'http://x', api_key: 'msk_abc' });
+
+      const finalPath = join(home, '.mostly', 'config');
+      const tmpPath = `${finalPath}.tmp`;
+
+      expect(mockedWriteFileSync).toHaveBeenCalledTimes(1);
+      const [writePath, writeBody, writeOpts] = mockedWriteFileSync.mock.calls[0];
+      expect(writePath).toBe(tmpPath);
+      expect(writeOpts).toEqual({ mode: 0o600 });
+
+      // Body is JSON with a trailing newline
+      expect(typeof writeBody).toBe('string');
+      const parsed = JSON.parse(writeBody as string);
+      expect(parsed).toEqual({ server_url: 'http://x', api_key: 'msk_abc' });
+      expect((writeBody as string).endsWith('\n')).toBe(true);
+
+      expect(mockedRenameSync).toHaveBeenCalledWith(tmpPath, finalPath);
+    });
+
+    it('strips undefined fields from the serialized JSON', () => {
+      mockedExistsSync.mockReturnValue(true);
+
+      writeConfig({
+        server_url: 'http://x',
+        api_key: undefined,
+        agent_token: undefined,
+        default_actor: 'alice',
+      });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed).toEqual({ server_url: 'http://x', default_actor: 'alice' });
+      expect(parsed).not.toHaveProperty('api_key');
+      expect(parsed).not.toHaveProperty('agent_token');
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('merges updates into the existing config', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(
+        JSON.stringify({
+          server_url: 'http://old.com',
+          agent_token: 'mat_existing',
+          default_actor: 'alice',
+        }),
+      );
+
+      updateConfig({ api_key: 'msk_new' });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed).toEqual({
+        server_url: 'http://old.com',
+        agent_token: 'mat_existing',
+        default_actor: 'alice',
+        api_key: 'msk_new',
+      });
+    });
+
+    it('overwrites an existing field when a new value is provided', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(
+        JSON.stringify({ server_url: 'http://old.com', api_key: 'msk_old' }),
+      );
+
+      updateConfig({ api_key: 'msk_new' });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed.api_key).toBe('msk_new');
+      expect(parsed.server_url).toBe('http://old.com');
+    });
+
+    it('removes a field when passed null', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(
+        JSON.stringify({
+          server_url: 'http://x',
+          api_key: 'msk_abc',
+          default_actor: 'alice',
+        }),
+      );
+
+      updateConfig({ api_key: null });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed).not.toHaveProperty('api_key');
+      expect(parsed.server_url).toBe('http://x');
+      expect(parsed.default_actor).toBe('alice');
+    });
+
+    it('leaves unrelated fields untouched when a key is undefined', () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue(
+        JSON.stringify({ server_url: 'http://x', api_key: 'msk_abc' }),
+      );
+
+      updateConfig({ default_actor: 'bob' });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed).toEqual({
+        server_url: 'http://x',
+        api_key: 'msk_abc',
+        default_actor: 'bob',
+      });
+    });
+
+    it('starts from an empty object when the existing config is missing', () => {
+      mockedExistsSync.mockReturnValue(false);
+
+      updateConfig({ api_key: 'msk_new', default_actor: 'alice' });
+
+      const body = mockedWriteFileSync.mock.calls[0][1] as string;
+      const parsed = JSON.parse(body);
+      expect(parsed).toEqual({ api_key: 'msk_new', default_actor: 'alice' });
     });
   });
 });

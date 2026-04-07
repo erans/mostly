@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -53,11 +53,72 @@ function readConfigFile(): MostlyConfig {
   if (!existsSync(path)) return {};
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf-8'));
-    if (parsed && typeof parsed === 'object') return parsed as MostlyConfig;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as MostlyConfig;
+    }
     return {};
   } catch {
     return {};
   }
+}
+
+/**
+ * Read the raw on-disk config (or an empty object if missing/corrupt).
+ * Used by login/logout to update specific fields without discarding others.
+ */
+export function readConfig(): MostlyConfig {
+  return readConfigFile();
+}
+
+/**
+ * Write the config file atomically with mode 0600. Creates ~/.mostly/ if it
+ * doesn't exist. "Atomic" means: write to a temp file in the same directory,
+ * then rename into place — no half-written config on disk.
+ */
+export function writeConfig(config: MostlyConfig): void {
+  const dir = getConfigDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // Strip undefined fields so the serialized JSON is clean.
+  const clean: MostlyConfig = {};
+  if (config.server_url) clean.server_url = config.server_url;
+  if (config.api_key) clean.api_key = config.api_key;
+  if (config.agent_token) clean.agent_token = config.agent_token;
+  if (config.default_actor) clean.default_actor = config.default_actor;
+
+  const finalPath = getConfigPath();
+  const tmpPath = `${finalPath}.tmp`;
+  const body = JSON.stringify(clean, null, 2) + '\n';
+  writeFileSync(tmpPath, body, { mode: 0o600 });
+  renameSync(tmpPath, finalPath);
+}
+
+/**
+ * Merge updates into the existing config file and write it back. Only the
+ * provided fields are changed; everything else is preserved. Passing `null`
+ * for a field explicitly removes it.
+ */
+export function updateConfig(updates: {
+  server_url?: string | null;
+  api_key?: string | null;
+  agent_token?: string | null;
+  default_actor?: string | null;
+}): void {
+  const current = readConfigFile();
+  const next: MostlyConfig = { ...current };
+  for (const [key, value] of Object.entries(updates) as [
+    keyof MostlyConfig,
+    string | null | undefined,
+  ][]) {
+    if (value === null) {
+      delete next[key];
+    } else if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+  writeConfig(next);
 }
 
 /**
