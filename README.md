@@ -4,7 +4,7 @@ A local-first, agent-friendly task tracker. SQLite-backed, designed for AI agent
 
 ## Architecture
 
-Mostly is a pnpm monorepo with six packages:
+Mostly is a pnpm monorepo with seven packages:
 
 | Package | Description |
 |---------|-------------|
@@ -14,6 +14,7 @@ Mostly is a pnpm monorepo with six packages:
 | `@mostly/server` | HTTP API server (Hono) |
 | `@mostly/cli` | Command-line interface (Commander.js) |
 | `@mostly/mcp` | MCP server for AI agent integration |
+| `@mostly/web` | Web frontend (React + Vite SPA) |
 
 ## Quick Start
 
@@ -77,6 +78,16 @@ mostly-mcp
 ```
 
 This exposes all task operations as MCP tools over stdio, compatible with Claude and other MCP-enabled AI agents.
+
+### Web Frontend
+
+Start the web UI for a browser-based task management interface:
+
+```bash
+cd packages/web && pnpm dev
+```
+
+The web UI runs at `http://localhost:5173` and connects to the Mostly server at `http://localhost:6080`. On first load, enter the server URL and auth token. Features include a three-panel layout (sidebar, task list, detail panel), command palette (Cmd+K), task creation, status transitions, claims, and light/dark themes.
 
 ## Key Concepts
 

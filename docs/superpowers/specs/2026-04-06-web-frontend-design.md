@@ -1,7 +1,7 @@
 # Mostly Web Frontend — Design Spec
 
 **Date:** 2026-04-06
-**Status:** Approved
+**Status:** Implemented
 
 ## Purpose
 

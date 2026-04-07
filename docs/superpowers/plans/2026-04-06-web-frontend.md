@@ -1,6 +1,6 @@
 # Mostly Web Frontend — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a Linear-inspired web frontend for the Mostly task tracker as `@mostly/web` in the monorepo.
 
@@ -71,7 +71,7 @@ packages/web/
 - Create: `packages/web/src/globals.css`
 - Create: `packages/web/src/lib/utils.ts`
 
-- [ ] **Step 1: Create package.json**
+- [x] **Step 1: Create package.json**
 
 ```json
 {
@@ -114,7 +114,7 @@ packages/web/
 
 Write to `packages/web/package.json`.
 
-- [ ] **Step 2: Create tsconfig.json**
+- [x] **Step 2: Create tsconfig.json**
 
 ```json
 {
@@ -137,7 +137,7 @@ Write to `packages/web/package.json`.
 
 Write to `packages/web/tsconfig.json`.
 
-- [ ] **Step 3: Create vite.config.ts**
+- [x] **Step 3: Create vite.config.ts**
 
 ```typescript
 import { defineConfig } from 'vite';
@@ -166,7 +166,7 @@ export default defineConfig({
 
 Write to `packages/web/vite.config.ts`.
 
-- [ ] **Step 4: Create index.html**
+- [x] **Step 4: Create index.html**
 
 ```html
 <!doctype html>
@@ -185,7 +185,7 @@ Write to `packages/web/vite.config.ts`.
 
 Write to `packages/web/index.html`.
 
-- [ ] **Step 5: Create globals.css with theme variables**
+- [x] **Step 5: Create globals.css with theme variables**
 
 ```css
 @import "tailwindcss";
@@ -246,7 +246,7 @@ body {
 
 Write to `packages/web/src/globals.css`.
 
-- [ ] **Step 6: Create lib/utils.ts**
+- [x] **Step 6: Create lib/utils.ts**
 
 ```typescript
 import { type ClassValue, clsx } from 'clsx';
@@ -259,7 +259,7 @@ export function cn(...inputs: ClassValue[]) {
 
 Write to `packages/web/src/lib/utils.ts`.
 
-- [ ] **Step 7: Create main.tsx**
+- [x] **Step 7: Create main.tsx**
 
 ```tsx
 import { StrictMode } from 'react';
@@ -276,7 +276,7 @@ createRoot(document.getElementById('root')!).render(
 
 Write to `packages/web/src/main.tsx`.
 
-- [ ] **Step 8: Create App.tsx (minimal placeholder)**
+- [x] **Step 8: Create App.tsx (minimal placeholder)**
 
 ```tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -306,7 +306,7 @@ export function App() {
 
 Write to `packages/web/src/App.tsx`.
 
-- [ ] **Step 9: Install dependencies and verify dev server starts**
+- [x] **Step 9: Install dependencies and verify dev server starts**
 
 ```bash
 cd packages/web && pnpm install
@@ -320,7 +320,7 @@ kill %1
 
 Expected: HTML page loads with `<div id="root">`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add packages/web/
@@ -338,7 +338,7 @@ git commit -m "feat(web): scaffold @mostly/web package with Vite, React, Tailwin
 - Create: `packages/web/src/api/principals.ts`
 - Create: `packages/web/src/hooks/use-config.ts`
 
-- [ ] **Step 1: Create the config context**
+- [x] **Step 1: Create the config context**
 
 This stores the server URL, auth token, and current principal handle. Persisted to localStorage.
 
@@ -402,7 +402,7 @@ export function useConfig() {
 
 Write to `packages/web/src/hooks/use-config.ts`.
 
-- [ ] **Step 2: Create the fetch wrapper**
+- [x] **Step 2: Create the fetch wrapper**
 
 ```typescript
 import type { ApiErrorResponse } from '@mostly/types';
@@ -472,7 +472,7 @@ export async function apiFetch<T>(
 
 Write to `packages/web/src/api/client.ts`.
 
-- [ ] **Step 3: Create tasks API functions**
+- [x] **Step 3: Create tasks API functions**
 
 ```typescript
 import type {
@@ -555,7 +555,7 @@ export function addTaskUpdate(taskId: string, body: CreateTaskUpdateRequest) {
 
 Write to `packages/web/src/api/tasks.ts`.
 
-- [ ] **Step 4: Create projects and principals API functions**
+- [x] **Step 4: Create projects and principals API functions**
 
 ```typescript
 import type { Project, CreateProjectRequest, ListParams } from '@mostly/types';
@@ -598,7 +598,7 @@ export function listPrincipals(params: Partial<ListParams> = {}) {
 
 Write to `packages/web/src/api/principals.ts`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/web/src/api/ packages/web/src/hooks/use-config.ts
@@ -614,7 +614,7 @@ git commit -m "feat(web): add typed API client and config context"
 - Create: `packages/web/src/hooks/use-projects.ts`
 - Create: `packages/web/src/hooks/use-principals.ts`
 
-- [ ] **Step 1: Create task query hooks**
+- [x] **Step 1: Create task query hooks**
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -713,7 +713,7 @@ export function useAddTaskUpdate() {
 
 Write to `packages/web/src/hooks/use-tasks.ts`.
 
-- [ ] **Step 2: Create project and principal query hooks**
+- [x] **Step 2: Create project and principal query hooks**
 
 ```typescript
 import { useQuery } from '@tanstack/react-query';
@@ -754,7 +754,7 @@ export function usePrincipals() {
 
 Write to `packages/web/src/hooks/use-principals.ts`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/web/src/hooks/
@@ -768,7 +768,7 @@ git commit -m "feat(web): add TanStack Query hooks for tasks, projects, principa
 **Files:**
 - Create: `packages/web/src/hooks/use-theme.ts`
 
-- [ ] **Step 1: Create theme hook**
+- [x] **Step 1: Create theme hook**
 
 ```typescript
 import { useState, useEffect, useCallback } from 'react';
@@ -808,7 +808,7 @@ export function useTheme() {
 
 Write to `packages/web/src/hooks/use-theme.ts`.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/web/src/hooks/use-theme.ts
@@ -823,7 +823,7 @@ git commit -m "feat(web): add theme toggle hook with localStorage persistence"
 - Create: `packages/web/src/components/setup-screen.tsx`
 - Modify: `packages/web/src/App.tsx`
 
-- [ ] **Step 1: Create setup screen**
+- [x] **Step 1: Create setup screen**
 
 ```tsx
 import { useState } from 'react';
@@ -916,7 +916,7 @@ export function SetupScreen() {
 
 Write to `packages/web/src/components/setup-screen.tsx`.
 
-- [ ] **Step 2: Wire setup screen into App.tsx**
+- [x] **Step 2: Wire setup screen into App.tsx**
 
 Replace `packages/web/src/App.tsx` with:
 
@@ -970,7 +970,7 @@ export function App() {
 
 Write to `packages/web/src/App.tsx`.
 
-- [ ] **Step 3: Verify setup screen renders**
+- [x] **Step 3: Verify setup screen renders**
 
 ```bash
 cd packages/web && pnpm dev &
@@ -980,7 +980,7 @@ kill %1
 
 Expected: page loads. Opening in browser shows the setup form.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/web/src/components/setup-screen.tsx packages/web/src/App.tsx
@@ -996,7 +996,7 @@ git commit -m "feat(web): add setup screen and config-gated app shell"
 - Create: `packages/web/src/components/sidebar.tsx`
 - Create: `packages/web/src/components/status-icon.tsx`
 
-- [ ] **Step 1: Create the status icon component**
+- [x] **Step 1: Create the status icon component**
 
 ```tsx
 import type { TaskStatus } from '@mostly/types';
@@ -1058,7 +1058,7 @@ export function StatusIcon({ status, size = iconSize }: { status: TaskStatus; si
 
 Write to `packages/web/src/components/status-icon.tsx`.
 
-- [ ] **Step 2: Create the sidebar component**
+- [x] **Step 2: Create the sidebar component**
 
 ```tsx
 import { NavLink, useLocation } from 'react-router';
@@ -1189,7 +1189,7 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
 
 Write to `packages/web/src/components/sidebar.tsx`.
 
-- [ ] **Step 3: Create the layout shell**
+- [x] **Step 3: Create the layout shell**
 
 ```tsx
 import { useState } from 'react';
@@ -1226,7 +1226,7 @@ export function Layout({ children, detail, onCommandPalette }: LayoutProps) {
 
 Write to `packages/web/src/components/layout.tsx`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/web/src/components/status-icon.tsx packages/web/src/components/sidebar.tsx packages/web/src/components/layout.tsx
@@ -1241,7 +1241,7 @@ git commit -m "feat(web): add layout shell, sidebar, and status icons"
 - Create: `packages/web/src/components/task-row.tsx`
 - Create: `packages/web/src/components/task-list.tsx`
 
-- [ ] **Step 1: Create the task row component**
+- [x] **Step 1: Create the task row component**
 
 ```tsx
 import type { Task } from '@mostly/types';
@@ -1300,7 +1300,7 @@ Write to `packages/web/src/components/task-row.tsx`.
 
 Note: The assignee display will use principal handles once we wire up the principal lookup in Task 9.
 
-- [ ] **Step 2: Create the task list with toolbar and grouping**
+- [x] **Step 2: Create the task list with toolbar and grouping**
 
 ```tsx
 import { useMemo, useState } from 'react';
@@ -1416,7 +1416,7 @@ export function TaskList({ title, tasks, selectedTaskId, onSelectTask }: TaskLis
 
 Write to `packages/web/src/components/task-list.tsx`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/web/src/components/task-row.tsx packages/web/src/components/task-list.tsx
@@ -1431,7 +1431,7 @@ git commit -m "feat(web): add task list with rows, grouping, and sorting"
 - Create: `packages/web/src/components/task-detail.tsx`
 - Create: `packages/web/src/components/updates-timeline.tsx`
 
-- [ ] **Step 1: Create the updates timeline**
+- [x] **Step 1: Create the updates timeline**
 
 ```tsx
 import type { TaskUpdate, Principal } from '@mostly/types';
@@ -1529,7 +1529,7 @@ export function UpdatesTimeline({ updates, principals }: UpdatesTimelineProps) {
 
 Write to `packages/web/src/components/updates-timeline.tsx`.
 
-- [ ] **Step 2: Create the task detail panel**
+- [x] **Step 2: Create the task detail panel**
 
 ```tsx
 import { useState } from 'react';
@@ -1796,7 +1796,7 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
 
 Write to `packages/web/src/components/task-detail.tsx`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/web/src/components/task-detail.tsx packages/web/src/components/updates-timeline.tsx
@@ -1810,7 +1810,7 @@ git commit -m "feat(web): add task detail panel with properties, transitions, an
 **Files:**
 - Create: `packages/web/src/components/task-form.tsx`
 
-- [ ] **Step 1: Create the task creation form**
+- [x] **Step 1: Create the task creation form**
 
 ```tsx
 import { useState } from 'react';
@@ -1918,7 +1918,7 @@ export function TaskForm({ onClose, defaultProjectId }: TaskFormProps) {
 
 Write to `packages/web/src/components/task-form.tsx`.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/web/src/components/task-form.tsx
@@ -1932,7 +1932,7 @@ git commit -m "feat(web): add task creation form dialog"
 **Files:**
 - Create: `packages/web/src/components/command-palette.tsx`
 
-- [ ] **Step 1: Create command palette**
+- [x] **Step 1: Create command palette**
 
 ```tsx
 import { useEffect, useState } from 'react';
@@ -2038,7 +2038,7 @@ export function CommandPalette({ open, onClose, onCreateTask }: CommandPalettePr
 
 Write to `packages/web/src/components/command-palette.tsx`.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/web/src/components/command-palette.tsx
@@ -2052,7 +2052,7 @@ git commit -m "feat(web): add command palette with task/project search and actio
 **Files:**
 - Create: `packages/web/src/hooks/use-keyboard.ts`
 
-- [ ] **Step 1: Create keyboard shortcut hook**
+- [x] **Step 1: Create keyboard shortcut hook**
 
 ```typescript
 import { useEffect, useCallback } from 'react';
@@ -2095,7 +2095,7 @@ export function useKeyboard(shortcuts: Shortcuts) {
 
 Write to `packages/web/src/hooks/use-keyboard.ts`.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/web/src/hooks/use-keyboard.ts
@@ -2111,7 +2111,7 @@ git commit -m "feat(web): add keyboard shortcut hook"
 - Create: `packages/web/src/pages/project-tasks.tsx`
 - Modify: `packages/web/src/App.tsx`
 
-- [ ] **Step 1: Create the tasks page**
+- [x] **Step 1: Create the tasks page**
 
 This page handles `/tasks/my`, `/tasks/all`, `/views/blocked`, and `/views/claims`.
 
@@ -2204,7 +2204,7 @@ export function TasksPage() {
 
 Write to `packages/web/src/pages/tasks.tsx`.
 
-- [ ] **Step 2: Create the project tasks page**
+- [x] **Step 2: Create the project tasks page**
 
 ```tsx
 import { useState, useMemo, useCallback } from 'react';
@@ -2276,7 +2276,7 @@ export function ProjectTasksPage() {
 
 Write to `packages/web/src/pages/project-tasks.tsx`.
 
-- [ ] **Step 3: Wire routes into App.tsx**
+- [x] **Step 3: Wire routes into App.tsx**
 
 Replace `packages/web/src/App.tsx`:
 
@@ -2345,7 +2345,7 @@ export function App() {
 
 Write to `packages/web/src/App.tsx`.
 
-- [ ] **Step 4: Verify the app builds**
+- [x] **Step 4: Verify the app builds**
 
 ```bash
 cd packages/web && pnpm build
@@ -2353,7 +2353,7 @@ cd packages/web && pnpm build
 
 Expected: Successful build with no TypeScript errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/web/src/pages/ packages/web/src/App.tsx
@@ -2368,7 +2368,7 @@ git commit -m "feat(web): add pages, routing, and wire everything together"
 - Modify: `packages/web/src/components/layout.tsx`
 - Modify: `packages/web/src/components/sidebar.tsx`
 
-- [ ] **Step 1: Update layout for responsive breakpoints**
+- [x] **Step 1: Update layout for responsive breakpoints**
 
 Replace `packages/web/src/components/layout.tsx`:
 
@@ -2460,7 +2460,7 @@ export function Layout({ children, detail, onCommandPalette }: LayoutProps) {
 
 Write to `packages/web/src/components/layout.tsx`.
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 ```bash
 cd packages/web && pnpm build
@@ -2468,7 +2468,7 @@ cd packages/web && pnpm build
 
 Expected: Successful build.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/web/src/components/layout.tsx
@@ -2479,7 +2479,7 @@ git commit -m "feat(web): add responsive layout with mobile/tablet/desktop break
 
 ## Task 14: Final Integration Verification
 
-- [ ] **Step 1: Run type check**
+- [x] **Step 1: Run type check**
 
 ```bash
 cd packages/web && npx tsc --noEmit
@@ -2487,7 +2487,7 @@ cd packages/web && npx tsc --noEmit
 
 Expected: No TypeScript errors.
 
-- [ ] **Step 2: Run production build**
+- [x] **Step 2: Run production build**
 
 ```bash
 cd packages/web && pnpm build
@@ -2495,7 +2495,7 @@ cd packages/web && pnpm build
 
 Expected: Successful Vite build, output in `dist/`.
 
-- [ ] **Step 3: Verify dev server starts and proxies API**
+- [x] **Step 3: Verify dev server starts and proxies API**
 
 ```bash
 cd packages/web && pnpm dev &
@@ -2505,7 +2505,7 @@ kill %1
 
 Expected: Output `1` (the root div is present).
 
-- [ ] **Step 4: Add .superpowers/ to .gitignore if not present**
+- [x] **Step 4: Add .superpowers/ to .gitignore if not present**
 
 Check if `.superpowers/` is in `.gitignore`. If not, add it:
 
@@ -2513,7 +2513,7 @@ Check if `.superpowers/` is in `.gitignore`. If not, add it:
 grep -q '.superpowers/' .gitignore || echo '.superpowers/' >> .gitignore
 ```
 
-- [ ] **Step 5: Commit final state**
+- [x] **Step 5: Commit final state**
 
 ```bash
 git add -A
