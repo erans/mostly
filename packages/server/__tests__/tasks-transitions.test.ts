@@ -13,7 +13,7 @@ describe('Task Transition Routes', () => {
     const res = await env.app.request('/v0/tasks', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -31,7 +31,7 @@ describe('Task Transition Routes', () => {
     const res = await env.app.request(`/v0/tasks/${taskId}/claim`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -50,7 +50,7 @@ describe('Task Transition Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/transition`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ describe('Task Transition Routes', () => {
       const transRes = await env.app.request(`/v0/tasks/${task.id}/transition`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -87,7 +87,7 @@ describe('Task Transition Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/transition`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -111,7 +111,7 @@ describe('Task Transition Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/transition`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -132,7 +132,7 @@ describe('Task Transition Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/transition`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

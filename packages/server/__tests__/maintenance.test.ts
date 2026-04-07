@@ -13,7 +13,7 @@ describe('Maintenance Routes', () => {
     const res = await env.app.request('/v0/tasks', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -30,7 +30,7 @@ describe('Maintenance Routes', () => {
       const res = await env.app.request('/v0/maintenance/reap-expired-claims', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -51,7 +51,7 @@ describe('Maintenance Routes', () => {
       await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -65,7 +65,7 @@ describe('Maintenance Routes', () => {
       const res = await env.app.request('/v0/maintenance/reap-expired-claims', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -78,7 +78,7 @@ describe('Maintenance Routes', () => {
 
       // Verify the task's claim was cleared
       const getRes = await env.app.request(`/v0/tasks/${task.id}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       const getBody = await getRes.json();
       expect(getBody.data.claimed_by_id).toBeNull();

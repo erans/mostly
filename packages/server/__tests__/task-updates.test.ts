@@ -13,7 +13,7 @@ describe('Task Update Routes', () => {
     const res = await env.app.request('/v0/tasks', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -32,7 +32,7 @@ describe('Task Update Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/updates`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -55,7 +55,7 @@ describe('Task Update Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/updates`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -78,7 +78,7 @@ describe('Task Update Routes', () => {
         await env.app.request(`/v0/tasks/${task.id}/updates`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.testToken}`,
+            Authorization: `Bearer ${env.testAgentToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -90,7 +90,7 @@ describe('Task Update Routes', () => {
       }
 
       const res = await env.app.request(`/v0/tasks/${task.id}/updates`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -108,7 +108,7 @@ describe('Task Update Routes', () => {
         await env.app.request(`/v0/tasks/${task.id}/updates`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.testToken}`,
+            Authorization: `Bearer ${env.testAgentToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -120,7 +120,7 @@ describe('Task Update Routes', () => {
       }
 
       const res = await env.app.request(`/v0/tasks/${task.id}/updates?limit=2`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();

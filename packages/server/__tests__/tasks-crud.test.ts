@@ -13,7 +13,7 @@ describe('Task CRUD Routes', () => {
     const res = await env.app.request('/v0/tasks', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -31,7 +31,7 @@ describe('Task CRUD Routes', () => {
     const res = await env.app.request('/v0/projects', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -68,7 +68,7 @@ describe('Task CRUD Routes', () => {
       const res = await env.app.request('/v0/tasks', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -88,7 +88,7 @@ describe('Task CRUD Routes', () => {
       const created = (await createRes.json()).data;
 
       const res = await env.app.request(`/v0/tasks/${created.id}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -101,7 +101,7 @@ describe('Task CRUD Routes', () => {
       const created = (await createRes.json()).data;
 
       const res = await env.app.request(`/v0/tasks/${created.key}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -110,7 +110,7 @@ describe('Task CRUD Routes', () => {
 
     it('returns 404 for non-existent task', async () => {
       const res = await env.app.request('/v0/tasks/NONEXISTENT-999', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(404);
       const body = await res.json();
@@ -126,7 +126,7 @@ describe('Task CRUD Routes', () => {
       const res = await env.app.request(`/v0/tasks/${created.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -148,7 +148,7 @@ describe('Task CRUD Routes', () => {
       const res = await env.app.request(`/v0/tasks/${created.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ describe('Task CRUD Routes', () => {
       await createTask({ title: 'Task B' });
 
       const res = await env.app.request('/v0/tasks', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -183,7 +183,7 @@ describe('Task CRUD Routes', () => {
       await createTask({ title: 'Open task' });
 
       const res = await env.app.request('/v0/tasks?status=open', {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -198,7 +198,7 @@ describe('Task CRUD Routes', () => {
       await createTask({ title: 'Unassigned task' });
 
       const res = await env.app.request(`/v0/tasks?assignee_id=${env.testPrincipalId}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -214,7 +214,7 @@ describe('Task CRUD Routes', () => {
       await createTask({ title: 'No project task' });
 
       const res = await env.app.request(`/v0/tasks?project_id=${project.id}`, {
-        headers: { Authorization: `Bearer ${env.testToken}` },
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
       });
       expect(res.status).toBe(200);
       const body = await res.json();

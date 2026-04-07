@@ -13,7 +13,7 @@ describe('Task Claim Routes', () => {
     const res = await env.app.request('/v0/tasks', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -31,7 +31,7 @@ describe('Task Claim Routes', () => {
     const res = await env.app.request('/v0/principals', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${env.testToken}`,
+        Authorization: `Bearer ${env.testAgentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -51,7 +51,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ describe('Task Claim Routes', () => {
       await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -86,7 +86,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -108,7 +108,7 @@ describe('Task Claim Routes', () => {
       const claimRes = await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -124,7 +124,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/renew-claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -145,7 +145,7 @@ describe('Task Claim Routes', () => {
       await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -159,7 +159,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/renew-claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -181,7 +181,7 @@ describe('Task Claim Routes', () => {
       const claimRes = await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -195,7 +195,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/release-claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -216,7 +216,7 @@ describe('Task Claim Routes', () => {
       await env.app.request(`/v0/tasks/${task.id}/claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -230,7 +230,7 @@ describe('Task Claim Routes', () => {
       const res = await env.app.request(`/v0/tasks/${task.id}/release-claim`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.testToken}`,
+          Authorization: `Bearer ${env.testAgentToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

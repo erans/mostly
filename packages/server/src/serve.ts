@@ -19,6 +19,7 @@ const DEFAULT_PORT = 6080;
 
 interface MostlyConfig {
   port?: number;
+  agent_token?: string;
   server_url?: string;
 }
 
@@ -48,7 +49,7 @@ function loadConfig(): MostlyConfig {
       ? parsePort(String(fileConfig.port))
       : DEFAULT_PORT;
 
-  return { port, server_url: fileConfig.server_url };
+  return { port, server_url: fileConfig.server_url, agent_token: fileConfig.agent_token };
 }
 
 async function main() {

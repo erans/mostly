@@ -2,13 +2,12 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createInMemoryDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
 import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
-import { sha256 } from '@mostly/types';
+import { sha256, generateToken } from '@mostly/types';
 import { createApp } from '../src/app.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const TEST_AGENT_TOKEN = 'mat_testagenttoken1234567890abcdef';
 const TEST_WORKSPACE_ID = '01TEST_WORKSPACE_000000001';
 const TEST_PRINCIPAL_ID = '01TEST_PRINCIPAL_000000001';
 const TEST_PRINCIPAL_HANDLE = 'test-agent';
@@ -21,13 +20,17 @@ export function createTestApp() {
   const repos = createRepositories(db);
   const tx = createTransactionManager(db);
 
+  // Each test app gets a fresh random agent token so cross-test isolation
+  // doesn't depend on a hardcoded value.
+  const testAgentToken = generateToken('mat_');
+
   // Seed default workspace with agent token
   const now = new Date().toISOString();
   repos.workspaces.create({
     id: TEST_WORKSPACE_ID,
     slug: 'test-workspace',
     name: 'Test Workspace',
-    agent_token_hash: sha256(TEST_AGENT_TOKEN),
+    agent_token_hash: sha256(testAgentToken),
     created_at: now,
     updated_at: now,
   });
@@ -70,7 +73,7 @@ export function createTestApp() {
     workspaceId: TEST_WORKSPACE_ID,
     testPrincipalId: TEST_PRINCIPAL_ID,
     testPrincipalHandle: TEST_PRINCIPAL_HANDLE,
-    testToken: TEST_AGENT_TOKEN,
+    testAgentToken,
     principalService,
     projectService,
     taskService,
