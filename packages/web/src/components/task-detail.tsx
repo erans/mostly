@@ -5,34 +5,9 @@ import { StatusIcon } from './status-icon';
 import { UpdatesTimeline } from './updates-timeline';
 import { useTaskUpdates, useTransitionTask, useClaimTask, useReleaseTask, useAddTaskUpdate } from '@/hooks/use-tasks';
 import { usePrincipals } from '@/hooks/use-principals';
-import { RESOLUTION_FOR_STATUS } from '@mostly/types';
-
-const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
-  open: ['claimed', 'closed', 'canceled'],
-  claimed: ['in_progress', 'blocked', 'open', 'closed', 'canceled'],
-  in_progress: ['blocked', 'open', 'closed', 'canceled'],
-  blocked: ['claimed', 'in_progress', 'open', 'closed', 'canceled'],
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  feature: 'var(--color-type-feature)',
-  bug: 'var(--color-type-bug)',
-  chore: 'var(--color-type-chore)',
-  research: 'var(--color-type-research)',
-  incident: 'var(--color-type-incident)',
-  question: 'var(--color-type-question)',
-};
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
+import { RESOLUTION_FOR_STATUS, ALLOWED_TRANSITIONS } from '@mostly/types';
+import { TYPE_COLORS } from '@/lib/constants';
+import { relativeTime } from '@/lib/format';
 
 interface TaskDetailProps {
   task: Task;

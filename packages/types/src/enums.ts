@@ -44,6 +44,13 @@ export const RESOLUTION_FOR_STATUS: Record<string, readonly Resolution[]> = {
   [TaskStatus.canceled]: [Resolution.wont_do, Resolution.deferred],
 };
 
+export const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
+  open: ['claimed', 'closed', 'canceled'],
+  claimed: ['in_progress', 'blocked', 'open', 'closed', 'canceled'],
+  in_progress: ['blocked', 'open', 'closed', 'canceled'],
+  blocked: ['claimed', 'in_progress', 'open', 'closed', 'canceled'],
+};
+
 export const TaskUpdateKind = {
   note: 'note',
   progress: 'progress',

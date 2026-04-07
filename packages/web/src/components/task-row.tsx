@@ -1,15 +1,7 @@
 import type { Task } from '@mostly/types';
 import { StatusIcon } from './status-icon';
 import { cn } from '@/lib/utils';
-
-const TYPE_COLORS: Record<string, string> = {
-  feature: 'var(--color-type-feature)',
-  bug: 'var(--color-type-bug)',
-  chore: 'var(--color-type-chore)',
-  research: 'var(--color-type-research)',
-  incident: 'var(--color-type-incident)',
-  question: 'var(--color-type-question)',
-};
+import { TYPE_COLORS } from '@/lib/constants';
 
 interface TaskRowProps {
   task: Task;
@@ -43,7 +35,7 @@ export function TaskRow({ task, selected, onSelect }: TaskRowProps) {
         {task.type}
       </span>
       <span className="min-w-[40px] shrink-0 text-right text-[11px] text-text-muted">
-        {task.assignee_id ? '\u2014' : '\u2014'}
+        {task.assignee_id ? task.assignee_id.slice(0, 8) : '\u2014'}
       </span>
     </button>
   );

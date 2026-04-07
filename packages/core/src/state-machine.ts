@@ -1,5 +1,5 @@
 import type { Task, TaskStatus, Resolution } from '@mostly/types';
-import { TERMINAL_STATUSES, RESOLUTION_FOR_STATUS } from '@mostly/types';
+import { TERMINAL_STATUSES, RESOLUTION_FOR_STATUS, ALLOWED_TRANSITIONS } from '@mostly/types';
 
 export type SideEffect =
   | { type: 'release_claim' }
@@ -9,13 +9,6 @@ export type SideEffect =
 export type TransitionResult =
   | { valid: true; sideEffects: SideEffect[] }
   | { valid: false; error: string };
-
-const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
-  open: ['claimed', 'closed', 'canceled'],
-  claimed: ['in_progress', 'blocked', 'open', 'closed', 'canceled'],
-  in_progress: ['blocked', 'open', 'closed', 'canceled'],
-  blocked: ['claimed', 'in_progress', 'open', 'closed', 'canceled'],
-};
 
 export function isTerminal(status: string): boolean {
   return (TERMINAL_STATUSES as readonly string[]).includes(status);
