@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { MostlyDb } from '../types.js';
-import type { WorkspaceRepository, WorkspaceCreateData } from '@mostly/core';
+import type { WorkspaceRepository, WorkspaceCreateData, WorkspacePatchData } from '@mostly/core';
 import type { Workspace } from '@mostly/types';
 import { NotFoundError } from '@mostly/types';
 import { workspaces } from '../schema/index.js';
@@ -42,6 +42,8 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
       id: data.id,
       slug: data.slug,
       name: data.name,
+      agent_token_hash: data.agent_token_hash ?? null,
+      allow_registration: data.allow_registration ?? false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     }).run();
@@ -50,9 +52,31 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
       id: data.id,
       slug: data.slug,
       name: data.name,
-      allow_registration: false,
+      allow_registration: data.allow_registration ?? false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
+  }
+
+  async update(id: string, data: WorkspacePatchData): Promise<Workspace> {
+    const existing = await this.findById(id);
+    if (!existing) throw new NotFoundError('workspace', id);
+
+    const updateValues: Record<string, unknown> = { updated_at: data.updated_at };
+    if (data.name !== undefined) updateValues.name = data.name;
+    if (data.agent_token_hash !== undefined) updateValues.agent_token_hash = data.agent_token_hash;
+    if (data.allow_registration !== undefined) updateValues.allow_registration = data.allow_registration;
+
+    await this.db.update(workspaces).set(updateValues).where(eq(workspaces.id, id)).run();
+    const updated = await this.findById(id);
+    return updated!;
+  }
+
+  async getAgentTokenHash(id: string): Promise<string | null> {
+    const rows = await this.db.select({ agent_token_hash: workspaces.agent_token_hash })
+      .from(workspaces)
+      .where(eq(workspaces.id, id))
+      .all();
+    return rows[0]?.agent_token_hash ?? null;
   }
 }

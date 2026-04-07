@@ -83,7 +83,9 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       kind: data.kind,
       display_name: data.display_name,
       metadata_json: metadataStr,
+      password_hash: data.password_hash ?? null,
       is_active: data.is_active,
+      is_admin: data.is_admin ?? false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     }).run();
@@ -96,7 +98,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       display_name: data.display_name,
       metadata_json: data.metadata_json ?? null,
       is_active: data.is_active,
-      is_admin: false,
+      is_admin: data.is_admin ?? false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -113,10 +115,29 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       updateValues.metadata_json = data.metadata_json ? JSON.stringify(data.metadata_json) : null;
     }
     if (data.is_active !== undefined) updateValues.is_active = data.is_active;
+    if (data.password_hash !== undefined) updateValues.password_hash = data.password_hash;
+    if (data.is_admin !== undefined) updateValues.is_admin = data.is_admin;
 
     await this.db.update(principals).set(updateValues).where(eq(principals.id, id)).run();
 
     const updated = await this.findById(id);
     return updated!;
+  }
+
+  async listHumans(workspaceId: string): Promise<Principal[]> {
+    const rows = await this.db
+      .select()
+      .from(principals)
+      .where(and(eq(principals.workspace_id, workspaceId), eq(principals.kind, 'human')))
+      .all();
+    return rows.map(toEntity);
+  }
+
+  async getPasswordHash(id: string): Promise<string | null> {
+    const rows = await this.db.select({ password_hash: principals.password_hash })
+      .from(principals)
+      .where(eq(principals.id, id))
+      .all();
+    return rows[0]?.password_hash ?? null;
   }
 }
