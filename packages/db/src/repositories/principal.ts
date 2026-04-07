@@ -16,6 +16,7 @@ function toEntity(row: DbRow): Principal {
     display_name: row.display_name,
     metadata_json: row.metadata_json ? JSON.parse(row.metadata_json) : null,
     is_active: row.is_active,
+    is_admin: row.is_admin,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -95,6 +96,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       display_name: data.display_name,
       metadata_json: data.metadata_json ?? null,
       is_active: data.is_active,
+      is_admin: false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };

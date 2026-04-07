@@ -15,8 +15,10 @@ describe('db migrations', () => {
 
     expect(tableNames).toEqual([
       'agent_action_context',
+      'api_key',
       'principal',
       'project',
+      'session',
       'task',
       'task_key_sequence',
       'task_update',

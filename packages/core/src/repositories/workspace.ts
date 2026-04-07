@@ -4,6 +4,7 @@ export interface WorkspaceCreateData {
   id: string;
   slug: string;
   name: string;
+  allow_registration: boolean;
   created_at: string;
   updated_at: string;
 }

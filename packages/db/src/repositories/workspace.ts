@@ -12,6 +12,7 @@ function toEntity(row: DbRow): Workspace {
     id: row.id,
     slug: row.slug,
     name: row.name,
+    allow_registration: row.allow_registration,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -49,6 +50,7 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
       id: data.id,
       slug: data.slug,
       name: data.name,
+      allow_registration: false,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };

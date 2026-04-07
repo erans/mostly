@@ -25,6 +25,7 @@ describe('DrizzleWorkspaceRepository', () => {
       id: '01WS0001',
       slug: 'default',
       name: 'Default Workspace',
+      allow_registration: false,
       created_at: now,
       updated_at: now,
     });

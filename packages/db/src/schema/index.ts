@@ -5,3 +5,5 @@ export { tasks } from './task';
 export { taskUpdates } from './task-update';
 export { agentActionContexts } from './agent-action-context';
 export { taskKeySequences } from './task-key-sequence';
+export { sessions } from './session';
+export { apiKeys } from './api-key';
