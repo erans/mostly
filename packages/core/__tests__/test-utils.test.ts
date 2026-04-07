@@ -9,6 +9,8 @@ import {
   FakeProjectRepository,
   FakeTaskRepository,
   FakeTaskUpdateRepository,
+  FakeSessionRepository,
+  FakeApiKeyRepository,
   FakeTransactionManager,
 } from '../src/test-utils/index.js';
 
@@ -90,6 +92,8 @@ describe('FakeTransactionManager', () => {
       projects: new FakeProjectRepository(),
       principals: new FakePrincipalRepository(),
       workspaces: new FakeWorkspaceRepository(),
+      sessions: new FakeSessionRepository(),
+      apiKeys: new FakeApiKeyRepository(),
     });
     const result = await txManager.withTransaction(async (ctx) => {
       return ctx.tasks === taskRepo;

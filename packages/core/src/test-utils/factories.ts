@@ -1,5 +1,5 @@
-import { generateId, ID_PREFIXES } from '@mostly/types';
-import type { Workspace, Principal, Project, Task, TaskUpdate } from '@mostly/types';
+import { generateId, ID_PREFIXES, generateToken } from '@mostly/types';
+import type { Workspace, Principal, Project, Task, TaskUpdate, Session, ApiKey } from '@mostly/types';
 
 const now = () => new Date().toISOString();
 
@@ -51,6 +51,33 @@ export function makeTaskUpdate(overrides: Partial<TaskUpdate> = {}): TaskUpdate 
   return {
     id: generateId(ID_PREFIXES.taskUpdate), task_id: generateId(ID_PREFIXES.task), kind: 'note', body: 'Test update.',
     metadata_json: null, created_by_id: generateId(ID_PREFIXES.principal), created_at: ts,
+    ...overrides,
+  };
+}
+
+export function makeSession(overrides: Partial<Session> = {}): Session {
+  const ts = now();
+  return {
+    id: generateToken('sess_'),
+    principal_id: generateId(ID_PREFIXES.principal),
+    workspace_id: generateId(ID_PREFIXES.workspace),
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: ts,
+    ...overrides,
+  };
+}
+
+export function makeApiKey(overrides: Partial<ApiKey> = {}): ApiKey {
+  const ts = now();
+  return {
+    id: `key_${Date.now().toString(36)}`,
+    principal_id: generateId(ID_PREFIXES.principal),
+    workspace_id: generateId(ID_PREFIXES.workspace),
+    name: 'test-key',
+    key_prefix: 'abcd1234',
+    is_active: true,
+    created_at: ts,
+    last_used_at: null,
     ...overrides,
   };
 }

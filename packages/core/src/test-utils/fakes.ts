@@ -1,4 +1,4 @@
-import type { Workspace, Principal, Project, Task, TaskUpdate } from '@mostly/types';
+import type { Workspace, Principal, Project, Task, TaskUpdate, Session, ApiKey } from '@mostly/types';
 import { ConflictError, NotFoundError } from '@mostly/types';
 import type {
   WorkspaceRepository, WorkspaceCreateData, WorkspacePatchData,
@@ -6,6 +6,8 @@ import type {
   ProjectRepository, ProjectCreateData, ProjectPatchData,
   TaskRepository, TaskCreateData, TaskUpdateData,
   TaskUpdateRepository, TaskUpdateCreateData, AgentActionContextCreateData,
+  SessionRepository, SessionCreateData,
+  ApiKeyRepository, ApiKeyCreateData,
   TransactionManager, TransactionContext,
   PaginatedResult, TaskListFilters,
 } from '../repositories/index.js';
@@ -244,6 +246,76 @@ export class FakeTaskUpdateRepository implements TaskUpdateRepository {
     _contexts: AgentActionContextCreateData[],
   ): Promise<TaskUpdate> {
     return this.create(data);
+  }
+}
+
+export class FakeSessionRepository implements SessionRepository {
+  private store = new Map<string, Session>();
+
+  async findById(id: string): Promise<Session | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async create(data: SessionCreateData): Promise<Session> {
+    const s = { ...data } as Session;
+    this.store.set(s.id, s);
+    return s;
+  }
+
+  async updateExpiresAt(id: string, expiresAt: string): Promise<void> {
+    const s = this.store.get(id);
+    if (s) this.store.set(id, { ...s, expires_at: expiresAt });
+  }
+
+  async delete(id: string): Promise<void> {
+    this.store.delete(id);
+  }
+
+  async deleteByPrincipalId(principalId: string): Promise<void> {
+    for (const [id, s] of this.store) {
+      if (s.principal_id === principalId) this.store.delete(id);
+    }
+  }
+}
+
+export class FakeApiKeyRepository implements ApiKeyRepository {
+  private store = new Map<string, ApiKey & { key_hash: string }>();
+
+  async findByHash(keyHash: string): Promise<(ApiKey & { key_hash: string }) | null> {
+    for (const k of this.store.values()) {
+      if (k.key_hash === keyHash) return k;
+    }
+    return null;
+  }
+
+  async findByPrincipalAndName(principalId: string, name: string): Promise<ApiKey | null> {
+    for (const k of this.store.values()) {
+      if (k.principal_id === principalId && k.name === name) return k;
+    }
+    return null;
+  }
+
+  async listByPrincipal(principalId: string): Promise<ApiKey[]> {
+    return [...this.store.values()]
+      .filter((k) => k.principal_id === principalId)
+      .map(({ key_hash, ...rest }) => rest);
+  }
+
+  async create(data: ApiKeyCreateData): Promise<ApiKey> {
+    const full = { ...data };
+    this.store.set(data.id, full);
+    const { key_hash, ...apiKey } = full;
+    return apiKey;
+  }
+
+  async deactivate(id: string): Promise<void> {
+    const k = this.store.get(id);
+    if (k) this.store.set(id, { ...k, is_active: false });
+  }
+
+  async updateLastUsed(id: string, lastUsedAt: string): Promise<void> {
+    const k = this.store.get(id);
+    if (k) this.store.set(id, { ...k, last_used_at: lastUsedAt });
   }
 }
 
