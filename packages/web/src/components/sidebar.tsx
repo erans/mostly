@@ -1,7 +1,8 @@
-import { NavLink, useLocation } from 'react-router';
-import { ListTodo, List, FolderOpen, Settings, Clock, Ban, Search, Plus } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router';
+import { ListTodo, List, FolderOpen, Settings, Clock, Ban, Search, Plus, LogOut, Key } from 'lucide-react';
 import { useProjects } from '@/hooks/use-projects';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -15,7 +16,16 @@ const PROJECT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '
 export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) {
   const { data: projects } = useProjects();
   const { toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
+
+  async function handleLogout() {
+    // Clear the local session and navigate even if the server call fails —
+    // useAuth().logout already catches server errors for exactly this reason.
+    await logout();
+    navigate('/login', { replace: true });
+  }
 
   const navLinkClass = (isActive: boolean) =>
     cn(
@@ -108,12 +118,47 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
             <span>Active Claims</span>
           </NavLink>
 
-          {/* Current user — TODO(task-16): wire to useAuth() */}
+          {/* Current user */}
           <div className="mt-auto flex items-center gap-2 border-t border-border px-2 pt-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-border/50 text-[10px] font-semibold text-text-secondary">
-              ?
+            <div
+              aria-hidden="true"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-border/50 text-[10px] font-semibold text-text-secondary"
+            >
+              {user?.handle ? user.handle.charAt(0).toUpperCase() : '?'}
             </div>
-            <span className="text-xs text-text-secondary">Signed out</span>
+            <div className="min-w-0 flex-1">
+              {user?.display_name ? (
+                <>
+                  <div className="truncate text-xs font-medium text-text">{user.display_name}</div>
+                  <div className="truncate text-[10px] text-text-muted">{user.handle}</div>
+                </>
+              ) : (
+                // Defensive fallback: Sidebar is only mounted under RequireAuth,
+                // so `user` should always be present. The `—` covers edge cases
+                // like a logout that navigates before the next render.
+                <div className="truncate text-xs text-text-secondary">{user?.handle ?? '—'}</div>
+              )}
+            </div>
+            <NavLink
+              to="/settings/api-keys"
+              aria-label="API keys"
+              className={({ isActive }) =>
+                cn(
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                  isActive ? 'bg-border/60' : 'hover:bg-border/30',
+                )
+              }
+            >
+              <Key size={14} className="text-text-secondary" />
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-border/30"
+            >
+              <LogOut size={14} className="text-text-secondary hover:text-text" />
+            </button>
           </div>
         </div>
       )}
