@@ -21,13 +21,22 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@mostly/types": "workspace:*"
+    "@mostly/types": "workspace:*",
+    "bcryptjs": "^3.0.3"
   },
   "tsup": {
-    "entry": ["src/index.ts", "src/test-utils/index.ts"],
-    "format": ["esm"],
+    "entry": [
+      "src/index.ts",
+      "src/test-utils/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
     "dts": true,
     "clean": true,
     "sourcemap": true
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0"
   }
 }
