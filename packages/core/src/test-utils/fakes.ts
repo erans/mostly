@@ -1,7 +1,7 @@
 import type { Workspace, Principal, Project, Task, TaskUpdate } from '@mostly/types';
 import { ConflictError, NotFoundError } from '@mostly/types';
 import type {
-  WorkspaceRepository, WorkspaceCreateData,
+  WorkspaceRepository, WorkspaceCreateData, WorkspacePatchData,
   PrincipalRepository, PrincipalCreateData, PrincipalPatchData,
   ProjectRepository, ProjectCreateData, ProjectPatchData,
   TaskRepository, TaskCreateData, TaskUpdateData,
@@ -29,6 +29,7 @@ function paginate<T extends { id: string }>(
 
 export class FakeWorkspaceRepository implements WorkspaceRepository {
   private store = new Map<string, Workspace>();
+  private agentTokenHashes = new Map<string, string | null>();
 
   async findById(id: string): Promise<Workspace | null> {
     return this.store.get(id) ?? null;
@@ -47,14 +48,41 @@ export class FakeWorkspaceRepository implements WorkspaceRepository {
   }
 
   async create(data: WorkspaceCreateData): Promise<Workspace> {
-    const ws: Workspace = { ...data };
+    const ws: Workspace = {
+      id: data.id,
+      slug: data.slug,
+      name: data.name,
+      allow_registration: data.allow_registration ?? false,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
     this.store.set(ws.id, ws);
+    if (data.agent_token_hash !== undefined) {
+      this.agentTokenHashes.set(ws.id, data.agent_token_hash);
+    }
     return ws;
+  }
+
+  async update(id: string, data: WorkspacePatchData): Promise<Workspace> {
+    const existing = this.store.get(id);
+    if (!existing) throw new NotFoundError('workspace', id);
+    const { agent_token_hash, ...rest } = data;
+    const updated: Workspace = { ...existing, ...rest };
+    this.store.set(id, updated);
+    if (agent_token_hash !== undefined) {
+      this.agentTokenHashes.set(id, agent_token_hash ?? null);
+    }
+    return updated;
+  }
+
+  async getAgentTokenHash(id: string): Promise<string | null> {
+    return this.agentTokenHashes.get(id) ?? null;
   }
 }
 
 export class FakePrincipalRepository implements PrincipalRepository {
   private store = new Map<string, Principal>();
+  private passwordHashes = new Map<string, string | null>();
 
   async findById(id: string): Promise<Principal | null> {
     return this.store.get(id) ?? null;
@@ -72,18 +100,34 @@ export class FakePrincipalRepository implements PrincipalRepository {
     return paginate(items, cursor, limit);
   }
 
+  async listHumans(workspaceId: string): Promise<Principal[]> {
+    return [...this.store.values()].filter(
+      (p) => p.workspace_id === workspaceId && p.kind === 'human',
+    );
+  }
+
   async create(data: PrincipalCreateData): Promise<Principal> {
-    const p = { ...data, metadata_json: data.metadata_json ?? null } as Principal;
+    const { password_hash, ...rest } = data;
+    const p = { ...rest, metadata_json: data.metadata_json ?? null } as Principal;
     this.store.set(p.id, p);
+    this.passwordHashes.set(p.id, password_hash);
     return p;
   }
 
   async update(id: string, data: PrincipalPatchData): Promise<Principal> {
     const existing = this.store.get(id);
     if (!existing) throw new NotFoundError('principal', id);
-    const updated = { ...existing, ...data } as Principal;
+    const { password_hash, ...rest } = data;
+    const updated = { ...existing, ...rest } as Principal;
     this.store.set(id, updated);
+    if (password_hash !== undefined) {
+      this.passwordHashes.set(id, password_hash);
+    }
     return updated;
+  }
+
+  async getPasswordHash(id: string): Promise<string | null> {
+    return this.passwordHashes.get(id) ?? null;
   }
 }
 
