@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useConfig } from '@/hooks/use-config';
-import { setClientConfig, apiFetch } from '@/api/client';
+import { setBaseUrl } from '@/api/client';
 
 export function SetupScreen() {
   const { setConfig } = useConfig();
   const [serverUrl, setServerUrl] = useState('http://localhost:6080');
-  const [token, setToken] = useState('');
-  const [handle, setHandle] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,10 +14,16 @@ export function SetupScreen() {
     setLoading(true);
 
     try {
-      setClientConfig({ baseUrl: serverUrl, token });
-      // Validate by fetching the principal
-      await apiFetch(`/v0/principals/${encodeURIComponent(handle)}`);
-      setConfig({ serverUrl, token, principalHandle: handle });
+      const trimmed = serverUrl.replace(/\/+$/, '');
+      // Probe the unauthenticated health endpoint to verify the server is
+      // reachable. We hit /healthz directly (not via apiFetch) because the
+      // health check is mounted outside /v0/* and does not need cookies.
+      const res = await fetch(`${trimmed}/healthz`);
+      if (!res.ok) {
+        throw new Error(`Server responded with HTTP ${res.status}`);
+      }
+      setBaseUrl(trimmed);
+      setConfig({ serverUrl: trimmed });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
@@ -43,30 +47,6 @@ export function SetupScreen() {
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
             className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-            required
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-medium text-text-secondary">API Token</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-            placeholder="Bearer token"
-            required
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-medium text-text-secondary">Your Handle</span>
-          <input
-            type="text"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-            placeholder="e.g. eran"
             required
           />
         </label>

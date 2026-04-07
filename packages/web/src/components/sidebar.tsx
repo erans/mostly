@@ -1,7 +1,6 @@
 import { NavLink, useLocation } from 'react-router';
 import { ListTodo, List, FolderOpen, Settings, Clock, Ban, Search, Plus } from 'lucide-react';
 import { useProjects } from '@/hooks/use-projects';
-import { useConfig } from '@/hooks/use-config';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 
@@ -15,7 +14,6 @@ const PROJECT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '
 
 export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) {
   const { data: projects } = useProjects();
-  const { config } = useConfig();
   const { toggleTheme } = useTheme();
   const location = useLocation();
 
@@ -110,12 +108,12 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
             <span>Active Claims</span>
           </NavLink>
 
-          {/* Current user */}
+          {/* Current user — TODO(task-16): wire to useAuth() */}
           <div className="mt-auto flex items-center gap-2 border-t border-border px-2 pt-3">
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-border/50 text-[10px] font-semibold text-text-secondary">
-              {config?.principalHandle?.[0]?.toUpperCase() ?? '?'}
+              ?
             </div>
-            <span className="text-xs text-text-secondary">{config?.principalHandle}</span>
+            <span className="text-xs text-text-secondary"></span>
           </div>
         </div>
       )}

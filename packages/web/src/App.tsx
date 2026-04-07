@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { ConfigProvider, useConfig } from '@/hooks/use-config';
-import { setClientConfig } from '@/api/client';
+import { setBaseUrl } from '@/api/client';
 import { SetupScreen } from '@/components/setup-screen';
 import { TasksPage } from '@/pages/tasks';
 import { ProjectTasksPage } from '@/pages/project-tasks';
@@ -23,7 +23,7 @@ function AppRouter() {
 
   useEffect(() => {
     if (config) {
-      setClientConfig({ baseUrl: config.serverUrl, token: config.token });
+      setBaseUrl(config.serverUrl);
     }
   }, [config]);
 
