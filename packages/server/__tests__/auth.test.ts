@@ -446,4 +446,147 @@ describe('auth routes', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('POST /v0/auth/reset-password', () => {
+    it('admin resets another user\'s password and old sessions are invalidated', async () => {
+      const { app } = createTestApp();
+
+      // Register admin
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'adminpass1' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      // Admin invites and targets accepts
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice' }),
+      });
+      const inviteToken = (await inviteRes.json()).data.invite_token;
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, password: 'original-pass' }),
+      });
+      const aliceCookie = getSessionCookie(acceptRes);
+
+      // Admin resets alice's password
+      const resetRes = await app.request('/v0/auth/reset-password', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'fresh-password-1' }),
+      });
+      expect(resetRes.status).toBe(200);
+      const body = await resetRes.json();
+      expect(body.data.success).toBe(true);
+
+      // Alice's old session should be invalidated
+      const meRes = await app.request('/v0/auth/me', {
+        headers: { Cookie: aliceCookie },
+      });
+      expect(meRes.status).toBe(401);
+
+      // Alice should be able to login with the new password
+      const loginRes = await app.request('/v0/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'fresh-password-1' }),
+      });
+      expect(loginRes.status).toBe(200);
+
+      // Old password should no longer work
+      const oldLoginRes = await app.request('/v0/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'original-pass' }),
+      });
+      expect(oldLoginRes.status).toBe(401);
+    });
+
+    it('rejects reset from non-admin', async () => {
+      const { app } = createTestApp();
+
+      // Admin + alice
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'adminpass1' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice' }),
+      });
+      const inviteToken = (await inviteRes.json()).data.invite_token;
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, password: 'alice-pass' }),
+      });
+      const aliceCookie = getSessionCookie(acceptRes);
+
+      // Alice (non-admin) tries to reset admin's password
+      const res = await app.request('/v0/auth/reset-password', {
+        method: 'POST',
+        headers: { Cookie: aliceCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'hijacked1' }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('returns 404 for unknown target handle', async () => {
+      const { app } = createTestApp();
+
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'adminpass1' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      const res = await app.request('/v0/auth/reset-password', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'ghost', password: 'whatever1' }),
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('requires authentication', async () => {
+      const { app } = createTestApp();
+
+      const res = await app.request('/v0/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'whatever1' }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('validates request body — rejects short password', async () => {
+      const { app } = createTestApp();
+
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'adminpass1' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      const res = await app.request('/v0/auth/reset-password', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'short' }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('invalid_argument');
+      expect(Object.keys(body.error.details)).toContain('password');
+    });
+  });
 });

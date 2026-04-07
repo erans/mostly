@@ -8,6 +8,7 @@ import {
   AcceptInviteRequest,
   CreateApiKeyRequest,
   InviteRequest,
+  ResetPasswordRequest,
   InvalidArgumentError,
   UnauthorizedError,
 } from '@mostly/types';
@@ -184,6 +185,20 @@ export function authRoutes(): Hono<AppEnv> {
     const authService = c.get('authService');
     const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, data);
     return c.json({ data: { principal, invite_token: inviteToken } }, 201);
+  });
+
+  // POST /v0/auth/reset-password
+  //
+  // Admin-only. Resets the target user's password hash and invalidates all
+  // their existing sessions. AuthService enforces the admin check and
+  // refuses to reset agents/services.
+  routes.post('/reset-password', async (c) => {
+    const { principalId, workspaceId } = await requireHumanAuth(c);
+    const data = await parseJsonBody(c, ResetPasswordRequest);
+
+    const authService = c.get('authService');
+    await authService.resetPassword(principalId, data.handle, workspaceId, data.password);
+    return c.json({ data: { success: true } });
   });
 
   return routes;

@@ -54,3 +54,9 @@ export const InviteRequest = z.object({
   display_name: z.string().max(128).optional(),
 });
 export type InviteRequest = z.infer<typeof InviteRequest>;
+
+export const ResetPasswordRequest = z.object({
+  handle: z.string().min(1).max(64).regex(/^[a-z0-9_-]+$/, 'handle must be lowercase alphanumeric, hyphens, or underscores'),
+  password: z.string().min(8).max(128),
+});
+export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequest>;
