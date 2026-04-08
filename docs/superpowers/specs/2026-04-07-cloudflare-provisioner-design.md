@@ -1,7 +1,7 @@
 # Cloudflare Provisioner — Design Spec
 
 **Date:** 2026-04-07
-**Status:** Approved
+**Status:** Implemented (2026-04-08)
 
 ## Purpose
 
