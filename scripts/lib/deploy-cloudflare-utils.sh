@@ -148,8 +148,13 @@ patch_wrangler_toml_field() {
   tmp=$(mktemp)
   awk -v key="$key" -v value="$value" '
     {
-      if ($0 ~ "^[[:space:]]*"key"[[:space:]]*=") {
-        printf("%s = \"%s\"\n", key, value)
+      pat = "^[[:space:]]*" key "[[:space:]]*="
+      if ($0 ~ pat) {
+        # Extract the leading whitespace by stripping everything from the
+        # first non-whitespace character to the end of the line.
+        indent = $0
+        sub("[^[:space:]].*$", "", indent)
+        printf("%s%s = \"%s\"\n", indent, key, value)
       } else {
         print
       }
@@ -177,6 +182,8 @@ unpatch_wrangler_toml_route() {
   require_file "$path"
   local tmp
   tmp=$(mktemp)
+  # Only matches column-0 `route = `, which is the format produced by
+  # patch_wrangler_toml_route. We are the only writer, so this is sufficient.
   grep -v '^route = ' "$path" > "$tmp" || true
   mv "$tmp" "$path"
 }
@@ -187,7 +194,10 @@ unpatch_wrangler_toml_route() {
 parse_deploy_url() {
   local output="$1"
   local url
-  url=$(printf '%s\n' "$output" | grep -oE 'https://[a-zA-Z0-9.-]+(\.workers\.dev|[a-zA-Z]{2,})(/[[:alnum:]_./-]*)?' | head -n1) || true
+  url=$(printf '%s\n' "$output" \
+    | grep -oE 'https://[a-zA-Z0-9.-]+(\.workers\.dev|[a-zA-Z]{2,})(/[[:alnum:]_./-]*)?' \
+    | grep -v 'dash\.cloudflare\.com' \
+    | head -n1) || true
   if [[ -z "$url" ]]; then
     die "could not parse deployed URL from wrangler output"
   fi
@@ -213,7 +223,7 @@ retry_once() {
 # to stderr so that callers can still redirect command stdout (e.g.
 # `run_cmd wrangler whoami >/dev/null`) without losing the dry-run trace.
 run_cmd() {
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${DRY_RUN:-0}" =~ ^(1|true|yes)$ ]]; then
     local IFS=' '
     printf 'would-run: %s\n' "$*" >&2
     return 0
@@ -230,10 +240,10 @@ run_cmd() {
 run_cmd_capture() {
   local canned="$1"
   shift
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  if [[ "${DRY_RUN:-0}" =~ ^(1|true|yes)$ ]]; then
     local IFS=' '
     printf 'would-run: %s\n' "$*" >&2
-    printf '%s' "$canned"
+    printf '%s\n' "$canned"
     return 0
   fi
   "$@"

@@ -377,3 +377,34 @@ Deployment ID: xyz'
   [ "$status" -eq 0 ]
   [[ "$output" == *"would-run: echo skip-me"* ]]
 }
+
+@test "patch_wrangler_toml_field preserves leading indentation" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+[[d1_databases]]
+  database_id = "old"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_field '$tmp' database_id new"
+  [ "$status" -eq 0 ]
+  run cat "$tmp"
+  [[ "$output" == *'  database_id = "new"'* ]]
+  rm -f "$tmp"
+}
+
+@test "parse_deploy_url skips a Cloudflare dashboard URL and returns the deploy URL" {
+  sample='Visit https://dash.cloudflare.com/abc123/workers/services/view/mostly to manage.
+Published mostly (0.45 sec)
+  https://mostly.test.workers.dev'
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && parse_deploy_url '$sample'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "https://mostly.test.workers.dev" ]
+}
+
+@test "run_cmd honors DRY_RUN=true (not just DRY_RUN=1)" {
+  tmp="/tmp/run-cmd-true-$$"
+  rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && DRY_RUN=true run_cmd touch '$tmp' 2>&1"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: touch $tmp"* ]]
+  [ ! -f "$tmp" ]
+}
