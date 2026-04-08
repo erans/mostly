@@ -70,3 +70,44 @@ require_file() {
     die "required path is not a regular file: $path"
   fi
 }
+
+# Write a KEY=value state file. Each argument after the first is a
+# KEY=VALUE pair. Rejects values containing single quotes because the
+# file is meant to be `source`-able and a quoted value with embedded
+# single quotes would need escaping we don't want to deal with.
+write_state() {
+  local path="$1"
+  shift
+  local pair
+  for pair in "$@"; do
+    if [[ "$pair" == *"'"* ]]; then
+      die "write_state: refusing to write value containing a single quote: $pair"
+    fi
+  done
+  : > "$path"
+  for pair in "$@"; do
+    printf '%s\n' "$pair" >> "$path"
+  done
+}
+
+# Source a state file into the current shell. Dies if the file doesn't
+# exist. Used by update and destroy to read init's state.
+read_state() {
+  local path="$1"
+  require_file "$path"
+  # shellcheck disable=SC1090
+  source "$path"
+}
+
+# Enforce a DNS-ish slug: lowercase letter first, then letters/digits/hyphens,
+# max 63 chars. Rejects anything else. Used for --workspace-slug and
+# --admin-handle to keep them safe for SQL interpolation and JSON payloads.
+validate_slug() {
+  local value="$1"
+  if [[ -z "$value" ]]; then
+    die "invalid slug: (empty)"
+  fi
+  if [[ ! "$value" =~ ^[a-z][a-z0-9-]{0,62}$ ]]; then
+    die "invalid slug: $value (must match ^[a-z][a-z0-9-]{0,62}\$)"
+  fi
+}

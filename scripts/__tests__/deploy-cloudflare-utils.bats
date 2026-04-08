@@ -98,3 +98,68 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"empty path"* ]]
 }
+
+@test "write_state writes KEY=value lines in the order given" {
+  tmp=$(mktemp)
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' DATABASE_ID=abc WORKSPACE_ID=def WORKER_URL=https://x.workers.dev"
+  [ "$status" -eq 0 ]
+  run cat "$tmp"
+  [ "$output" = "DATABASE_ID=abc
+WORKSPACE_ID=def
+WORKER_URL=https://x.workers.dev" ]
+  rm -f "$tmp"
+}
+
+@test "write_state refuses to write when a value contains a single quote" {
+  tmp=$(mktemp)
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' BAD=\"it's broken\""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"single quote"* ]]
+  rm -f "$tmp"
+}
+
+@test "read_state sources the state file into the current shell" {
+  tmp=$(mktemp)
+  printf 'DATABASE_ID=xyz\nWORKSPACE_ID=wsp\n' > "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && read_state '$tmp' && echo \"db=\$DATABASE_ID ws=\$WORKSPACE_ID\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"db=xyz ws=wsp"* ]]
+  rm -f "$tmp"
+}
+
+@test "read_state dies when the state file is missing" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && read_state /tmp/definitely-not-a-state-file-xyz"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"definitely-not-a-state-file-xyz"* ]]
+}
+
+@test "validate_slug accepts a simple lowercase slug" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug default"
+  [ "$status" -eq 0 ]
+}
+
+@test "validate_slug accepts a slug with hyphens and digits" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug acme-corp-42"
+  [ "$status" -eq 0 ]
+}
+
+@test "validate_slug rejects uppercase" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug Acme"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"invalid"* ]]
+}
+
+@test "validate_slug rejects a leading digit" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug 1abc"
+  [ "$status" -eq 1 ]
+}
+
+@test "validate_slug rejects a single quote in the value" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug \"it's\""
+  [ "$status" -eq 1 ]
+}
+
+@test "validate_slug rejects empty string" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug ''"
+  [ "$status" -eq 1 ]
+}
