@@ -28,9 +28,34 @@ IFS=$'\n\t'
 # shellcheck disable=SC2034  # Used by the trap in deploy-cloudflare.sh (Task 5).
 CURRENT_STEP="(not started)"
 
-# Minimal die so the skeleton dispatch table works before Task 5 lands the full
-# implementation. Task 5 replaces this with a richer version.
+log_step() {
+  local message="$1"
+  # shellcheck disable=SC2034  # Read by the trap in deploy-cloudflare.sh (Task 7+).
+  CURRENT_STEP="$message"
+  printf '==> %s\n' "$message" >&2
+}
+
+log_warn() {
+  local message="$1"
+  printf '[WARN] %s\n' "$message" >&2
+}
+
 die() {
-  echo "ERROR: $*" >&2
+  local message="$1"
+  printf '[ERROR] %s\n' "$message" >&2
   exit 1
+}
+
+require_cmd() {
+  local name="$1"
+  if ! command -v "$name" >/dev/null 2>&1; then
+    die "required command not found: $name (install it or add it to PATH)"
+  fi
+}
+
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    die "required file not found: $path"
+  fi
 }
