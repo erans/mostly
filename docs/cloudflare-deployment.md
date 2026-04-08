@@ -1,8 +1,19 @@
 # Deploying Mostly to Cloudflare Workers + D1
 
-This guide walks through deploying the Mostly task tracker API to Cloudflare Workers with D1 as the database backend.
+Mostly runs on Cloudflare as a single Worker that serves both the `/v0/*`
+API and the React frontend via Workers Static Assets. One deployment,
+one URL, one DNS entry.
 
-> **Note:** D1 does not support multi-statement transactions (BEGIN/COMMIT/ROLLBACK). Multi-step write operations (e.g., task creation with key allocation) use sequential statements rather than atomic transactions. D1's single-writer guarantee prevents concurrent conflicts, and key operations like `nextKeyNumber` use single atomic SQL statements. For most workloads this is fine, but be aware that a mid-operation failure could leave partial state.
+The fastest path is the provisioning script at
+`scripts/deploy-cloudflare.sh`. It handles fresh installs and updates,
+and the manual recipe below is available as a fallback.
+
+> **Note:** D1 does not support multi-statement transactions
+> (BEGIN/COMMIT/ROLLBACK). Multi-step write operations (e.g., task
+> creation with key allocation) use sequential statements rather than
+> atomic transactions. D1's single-writer guarantee prevents concurrent
+> conflicts. Mid-operation failures can leave partial state; for most
+> workloads this is fine.
 
 ## Prerequisites
 
@@ -10,91 +21,246 @@ This guide walks through deploying the Mostly task tracker API to Cloudflare Wor
 - [Node.js](https://nodejs.org/) 20+
 - [pnpm](https://pnpm.io/) 9+
 - [wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI
+  (`npm install -g wrangler`)
+- `curl`, `jq`, `openssl` on PATH (standard on Linux and macOS)
 
-Install wrangler:
-
-    npm install -g wrangler
-
-Authenticate:
+Authenticate with Cloudflare once:
 
     wrangler login
 
-## 1. Clone and Build
+## Fresh install
+
+Clone the repo, install dependencies, and run the provisioner:
 
     git clone <repo-url>
     cd mostlylinear
     pnpm install
-    pnpm build
+    ./scripts/deploy-cloudflare.sh init
 
-## 2. Create a D1 Database
+The script will:
+
+1. Verify your tools and Cloudflare login
+2. Prompt for an admin handle and password (unless you pass
+   `--admin-handle` / `--admin-password`)
+3. Create the `mostly-db` D1 database
+4. Apply migrations
+5. Seed the default workspace
+6. Build the web package (with `VITE_SINGLE_ORIGIN=true` so the frontend
+   uses the current origin for the API)
+7. Build and deploy the worker
+8. Register the first admin via `POST /v0/auth/register`
+9. Mint a personal API key (`msk_*`)
+10. Install a workspace agent token (`mat_*`) by writing its SHA-256 hash
+    to `workspace.agent_token_hash`
+11. Save non-secret state to `.cloudflare.env` (gitignored)
+12. Print a summary with the URL, API key, and agent token — **save
+    both tokens, they are only shown once**
+
+When it finishes you'll see:
+
+    Mostly deployed successfully.
+
+    URL:          https://mostly.<your-subdomain>.workers.dev
+    Admin:        admin
+    API key:      msk_...                   (save this — shown only once)
+    Agent token:  mat_...                   (save this — shown only once)
+
+### Custom domain
+
+Pass `--domain <host>` on init:
+
+    ./scripts/deploy-cloudflare.sh init --domain mostly.example.com
+
+The script writes a `route` block into `wrangler.toml` for you. The
+domain must be on Cloudflare DNS; add the custom domain in the Cloudflare
+dashboard under Workers & Pages → your worker → Settings → Triggers →
+Custom Domains if you haven't already.
+
+### Non-interactive install
+
+For CI or automated runs, pass all the inputs via flags:
+
+    ./scripts/deploy-cloudflare.sh init \
+      --admin-handle admin \
+      --admin-password "$MOSTLY_ADMIN_PASSWORD" \
+      --workspace-slug acme \
+      --domain mostly.acme.com
+
+## Updates
+
+To push new code to an existing deployment:
+
+    ./scripts/deploy-cloudflare.sh update
+
+This applies any new D1 migrations, rebuilds the web and worker
+packages, and redeploys. It does not touch users, API keys, the agent
+token, or the workspace row. Running it twice in a row is a no-op.
+
+If you ran `git checkout wrangler.toml` between deploys and cleared the
+provisioned `database_id` / `WORKSPACE_ID`, `update` reads
+`.cloudflare.env` and restores them before redeploying.
+
+## Teardown
+
+To wipe everything:
+
+    ./scripts/deploy-cloudflare.sh destroy --yes-i-really-mean-it
+
+The script prints what will be deleted and then asks you to retype the
+worker name to confirm. After double-confirmation it deletes the worker,
+deletes the D1 database, removes `.cloudflare.env`, and resets the
+`database_id` / `WORKSPACE_ID` placeholders in `wrangler.toml` back to
+empty strings. `git diff wrangler.toml` will be empty after a successful
+teardown.
+
+**This is irreversible.** All users, tasks, and API keys are lost.
+
+## Configure the CLI and MCP client
+
+Point `~/.mostly/config` at the deployed URL:
+
+```json
+{
+  "server_url": "https://mostly.<your-subdomain>.workers.dev",
+  "api_key": "msk_<your-api-key>"
+}
+```
+
+If you want headless jobs to run under the shared agent token in
+addition to (or instead of) a personal API key:
+
+```json
+{
+  "server_url": "https://mostly.<your-subdomain>.workers.dev",
+  "api_key": "msk_...",
+  "agent_token": "mat_...",
+  "default_actor": "admin"
+}
+```
+
+When both are set, `api_key` wins. `agent_token` is only consulted when
+`api_key` is missing, and it requires `default_actor` so the server
+knows which agent principal to record.
+
+Then run `mostly-mcp` or the `mostly` CLI as usual.
+
+## Local development
+
+To test Workers locally before deploying:
+
+    wrangler dev
+
+This starts a local Workers runtime with D1 backed by a local SQLite
+file. Apply migrations locally first:
+
+    wrangler d1 migrations apply mostly-db --local
+
+Local dev still shows the `SetupScreen` prompt for a server URL because
+`VITE_SINGLE_ORIGIN` is not set when you run `pnpm --filter @mostly/web
+dev` — that's intended; local dev typically has the API and frontend on
+different ports.
+
+## Troubleshooting
+
+**"D1_ERROR: no such table"**
+Migrations haven't been applied. Run
+`wrangler d1 migrations apply mostly-db --remote`.
+
+**401 Unauthorized**
+Your credentials didn't resolve to a principal. Check that the
+`Authorization: Bearer msk_...` header is present and spelled correctly,
+and — if you're using an agent token — that the request body includes
+`actor_handle` on mutating requests. If the CLI is returning 401 on
+*every* command (including `mostly api-key list`), the persisted API key
+is likely stale or revoked; recover by signing in again with
+`mostly login` or by minting a new key from the web UI's API Keys page.
+
+**403 Forbidden**
+`POST /v0/auth/register` returns 403 with `code: "forbidden"` once a
+human principal exists and `workspace.allow_registration` is false.
+That's the intended locked-down state after the first admin registers —
+use `mostly invite <handle>` from an authenticated admin (or the web
+Invite User flow) to add subsequent users.
+
+**500 Internal Server Error**
+Check worker logs: `wrangler tail`.
+
+**"WORKSPACE_ID is empty"**
+Set `WORKSPACE_ID` in `wrangler.toml` `[vars]` section, or re-run
+`./scripts/deploy-cloudflare.sh update` to reconcile it from
+`.cloudflare.env`.
+
+## Appendix: Manual provisioning
+
+This is the step-by-step recipe that `scripts/deploy-cloudflare.sh init`
+automates. It exists as a reference for people who want to understand
+what the script does, or who need to fix a partially-provisioned
+deployment where the script can't help.
+
+### 1. Create a D1 Database
 
     wrangler d1 create mostly-db
 
-This prints a `database_id`. Copy it.
+Copy the printed `database_id`.
 
-## 3. Configure wrangler.toml
+### 2. Configure wrangler.toml
 
-Open `wrangler.toml` at the project root and set the `database_id`:
+Open `wrangler.toml` at the project root and set:
 
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "mostly-db"
 database_id = "<paste-your-database-id-here>"
+
+[vars]
+WORKSPACE_ID = "01WORKSPACE000000000000001"
+
+[assets]
+directory = "packages/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/v0/*"]
 ```
 
-## 4. Apply Migrations
-
-Apply the database schema to your D1 instance:
+### 3. Apply migrations
 
     wrangler d1 migrations apply mostly-db --remote
 
-This runs all SQL migrations from `packages/db/migrations/`.
+### 4. Seed the workspace
 
-## 5. Seed the Workspace
+    wrangler d1 execute mostly-db --remote --command \
+      "INSERT INTO workspace (id, slug, name, created_at, updated_at) VALUES ('01WORKSPACE000000000000001', 'default', 'Default Workspace', datetime('now'), datetime('now'));"
 
-Create a default workspace (the first — and, until multi-tenancy lands, the only — workspace the Worker will serve):
+Do **not** pre-create a principal by hand. The first-user registration
+flow (step 7 below) does that for you after the Worker is deployed, and
+it sets a bcrypt password hash that you cannot easily produce from raw
+SQL.
 
-    wrangler d1 execute mostly-db --remote --command "INSERT INTO workspace (id, slug, name, created_at, updated_at) VALUES ('01WORKSPACE000000000000001', 'default', 'Default Workspace', datetime('now'), datetime('now'));"
+### 5. Build the web and worker packages
 
-Copy the workspace ID (`01WORKSPACE000000000000001`) — you'll need it in step 6.
-
-Do **not** pre-create a principal by hand. The first-user registration flow (step 9) will do that for you after the Worker is deployed, and it sets a bcrypt password hash the login endpoint can verify — something you cannot easily produce from raw SQL.
-
-## 6. Set the Workspace ID
-
-In `wrangler.toml`, set the workspace ID from step 5:
-
-```toml
-[vars]
-WORKSPACE_ID = "01WORKSPACE000000000000001"
-```
-
-## 7. Build the Worker
-
-Build the worker bundle:
-
+    VITE_SINGLE_ORIGIN=true pnpm --filter @mostly/web build
     pnpm --filter @mostly/server build:worker
 
-## 8. Deploy
+### 6. Deploy
 
     wrangler deploy
 
-Wrangler prints the deployed URL, e.g., `https://mostly.<your-subdomain>.workers.dev`.
+Wrangler prints the deployed URL (e.g.
+`https://mostly.<your-subdomain>.workers.dev`).
 
-## 9. Register the First User
+### 7. Register the first user
 
-The Worker is now live but has no users. Because no principals exist, `POST /v0/auth/register` is open and the first caller becomes the admin. Pick a strong password:
+The Worker is now live but has no users. Because no principals exist,
+`POST /v0/auth/register` is open and the first caller becomes the admin:
 
     curl -X POST https://mostly.<your-subdomain>.workers.dev/v0/auth/register \
       -H "Content-Type: application/json" \
       -d '{"handle": "admin", "password": "<pick-something-strong>", "display_name": "Admin"}'
 
-The response sets a session cookie and returns the admin principal. After this point `/v0/auth/register` is locked down to invite-only (unless `workspace.allow_registration` is true).
+After this, `/v0/auth/register` is locked down to invite-only.
 
-## 10. Create a Personal API Key
-
-With the admin session cookie from step 9 (or by logging in fresh via `POST /v0/auth/login`), mint a long-lived API key for CLI and HTTP use:
+### 8. Create a personal API key
 
     # Log in — stores the session cookie in a file for the next call.
     curl -c cookies.txt -X POST https://mostly.<your-subdomain>.workers.dev/v0/auth/login \
@@ -106,11 +272,10 @@ With the admin session cookie from step 9 (or by logging in fresh via `POST /v0/
       -H "Content-Type: application/json" \
       -d '{"name": "admin-cli"}'
 
-The response includes a `key` field beginning with `msk_` — **save it now**, it is only shown once.
+The response includes a `key` field beginning with `msk_` — save it now,
+it is only shown once.
 
-## 11. (Optional) Install a Workspace Agent Token
-
-If you want agents or CI jobs to authenticate without impersonating a user, seed a shared agent token. The Worker entrypoint does not implement the `MOSTLY_BOOTSTRAP_AGENT_TOKEN` env var that the local node server does, so the cleanest path is to generate a token, hash it, and set `workspace.agent_token_hash` directly:
+### 9. (Optional) Install a workspace agent token
 
     TOKEN="mat_$(openssl rand -hex 32)"
     HASH=$(printf %s "$TOKEN" | openssl dgst -sha256 -hex | awk '{print $2}')
@@ -118,73 +283,13 @@ If you want agents or CI jobs to authenticate without impersonating a user, seed
       --command "UPDATE workspace SET agent_token_hash = '$HASH', updated_at = datetime('now') WHERE id = '01WORKSPACE000000000000001';"
     echo "Agent token (save this — it is the only copy): $TOKEN"
 
-Agents authenticate by sending this token as a `Bearer` header and including `actor_handle` in every mutating request body.
+Agents authenticate with this token in a `Bearer` header and include
+`actor_handle` on every mutating request body.
 
-## 12. Verify
+### 10. Verify
 
-Test the deployment with the API key from step 10:
+Test the deployment with the API key from step 8:
 
     curl -H "Authorization: Bearer msk_<your-api-key>" https://mostly.<your-subdomain>.workers.dev/v0/principals
 
 You should see a JSON response listing the admin principal.
-
-## 13. Configure CLI and MCP Clients
-
-Point the CLI and MCP server at the deployed API by editing `~/.mostly/config`:
-
-```json
-{
-  "server_url": "https://mostly.<your-subdomain>.workers.dev",
-  "api_key": "msk_<your-api-key-from-step-10>"
-}
-```
-
-This is the minimum config for a human user — the CLI and MCP client both use `api_key` when present, and the server resolves your identity from the key. If you also installed an agent token in step 11 and want to run headless jobs without a user account, add `agent_token` and `default_actor` instead (or alongside):
-
-```json
-{
-  "server_url": "https://mostly.<your-subdomain>.workers.dev",
-  "api_key": "msk_...",
-  "agent_token": "mat_...",
-  "default_actor": "admin"
-}
-```
-
-When both are set, `api_key` wins (humans should authenticate as themselves). `agent_token` is only used when `api_key` is missing, and it requires `default_actor` so the server knows which agent principal to record.
-
-Then run `mostly-mcp` as usual — it will connect to the Cloudflare-hosted API.
-
-## Local Development
-
-To test Workers locally before deploying:
-
-    wrangler dev
-
-This starts a local Workers runtime with D1 backed by a local SQLite file. Apply migrations locally first:
-
-    wrangler d1 migrations apply mostly-db --local
-
-## Custom Domain
-
-To use a custom domain instead of `*.workers.dev`:
-
-1. Go to Cloudflare dashboard > Workers & Pages > your worker
-2. Click "Settings" > "Triggers" > "Custom Domains"
-3. Add your domain (must be on Cloudflare DNS)
-
-## Troubleshooting
-
-**"D1_ERROR: no such table"**
-Migrations haven't been applied. Run `wrangler d1 migrations apply mostly-db --remote`.
-
-**401 Unauthorized**
-Your credentials didn't resolve to a principal. Check that the `Authorization: Bearer msk_...` header is present and spelled correctly, and — if you're using an agent token — that the request body includes `actor_handle` on mutating requests. If the CLI is returning 401 on *every* command (including `mostly api-key list`), the persisted API key is likely stale or revoked; recover by signing in again with `mostly login` or by minting a new key from the web UI's API Keys page.
-
-**403 Forbidden**
-`POST /v0/auth/register` returns 403 with `code: "forbidden"` once a human principal exists and `workspace.allow_registration` is false. That's the intended locked-down state after the first admin registers — use `mostly invite <handle>` from an authenticated admin (or the web Invite User flow) to add subsequent users.
-
-**500 Internal Server Error**
-Check worker logs: `wrangler tail`.
-
-**"WORKSPACE_ID is empty"**
-Set `WORKSPACE_ID` in `wrangler.toml` `[vars]` section.
