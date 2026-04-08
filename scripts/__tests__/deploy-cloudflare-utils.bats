@@ -408,3 +408,9 @@ Published mostly (0.45 sec)
   [[ "$output" == *"would-run: touch $tmp"* ]]
   [ ! -f "$tmp" ]
 }
+
+@test "run_cmd_capture canned stdout is newline-terminated like real stdout" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && DRY_RUN=1 run_cmd_capture 'canned-value' echo skipped 2>/dev/null | xxd | tail -1"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"0a"* ]]
+}
