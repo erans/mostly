@@ -58,11 +58,28 @@ TOML
   [[ "$output" == *"invalid slug"* ]]
 }
 
-@test "update --dry-run prints parsed config" {
-  run "$SCRIPT_DIR/deploy-cloudflare.sh" update --dry-run
+@test "update --dry-run runs the preflight wrangler whoami via run_cmd" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update --dry-run
   [ "$status" -eq 0 ]
-  [[ "$output" == *"update"* ]]
-  [[ "$output" == *"dry_run=1"* ]]
+  [[ "$output" == *"would-run: wrangler whoami"* ]]
 }
 
 @test "destroy without --yes-i-really-mean-it exits 1" {
@@ -338,4 +355,104 @@ TOML
     run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
   [ "$status" -eq 1 ]
   [[ "$output" == *"malformed sha256 hash"* ]]
+}
+
+@test "update refuses to run when .cloudflare.env is missing" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  STATE_FILE="$tmp_state" run "$SCRIPT_DIR/deploy-cloudflare.sh" update
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not initialized"* ]]
+}
+
+@test "update applies migrations, builds, and deploys" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update
+  [ "$status" -eq 0 ]
+  run cat "$STUB_LOG_FILE"
+  [[ "$output" == *"wrangler d1 migrations apply"* ]]
+  [[ "$output" == *"pnpm --filter @mostly/web build"* ]]
+  [[ "$output" == *"pnpm --filter @mostly/server build:worker"* ]]
+  [[ "$output" == *"wrangler deploy"* ]]
+  # update should NOT call register, api-keys, or UPDATE workspace
+  [[ "$output" != *"/v0/auth/register"* ]]
+  [[ "$output" != *"/v0/auth/api-keys"* ]]
+  [[ "$output" != *"UPDATE workspace SET agent_token_hash"* ]]
+}
+
+@test "update reconciles wrangler.toml from the state file" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=reconcile-me
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update
+  [ "$status" -eq 0 ]
+  run grep 'database_id' "$tmp_toml"
+  [[ "$output" == *'database_id = "reconcile-me"'* ]]
+  run grep 'WORKSPACE_ID' "$tmp_toml"
+  [[ "$output" == *'WORKSPACE_ID = "01WORKSPACE000000000000001"'* ]]
+}
+
+@test "update --dry-run prints would-run lines and leaves wrangler.toml untouched" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  toml_before=$(cat "$tmp_toml")
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: wrangler whoami"* ]]
+  [[ "$output" == *"would-run: wrangler d1 migrations apply"* ]]
+  [[ "$output" == *"would-run: pnpm --filter @mostly/web build"* ]]
+  [[ "$output" == *"would-run: pnpm --filter @mostly/server build:worker"* ]]
+  [[ "$output" == *"would-run: wrangler deploy"* ]]
+  [[ "$output" == *"would-run: patch_wrangler_toml_field"* ]]
+  run cat "$STUB_LOG_FILE"
+  [ "$output" = "" ]
+  toml_after=$(cat "$tmp_toml")
+  [ "$toml_before" = "$toml_after" ]
 }

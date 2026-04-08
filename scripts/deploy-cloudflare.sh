@@ -305,8 +305,82 @@ cmd_update() {
     esac
   done
 
-  printf 'update dry_run=%s\n' "${DRY_RUN:-0}"
-  # Real logic lands in Task 11.
+  log_step "preflight: required commands"
+  require_cmd wrangler
+  require_cmd pnpm
+
+  log_step "preflight: state file"
+  # read_state would die with a generic "required file not found" message;
+  # detect the missing-file case ourselves so the error contains the
+  # actionable "not initialized" hint that points users at `init`.
+  if [[ ! -f "$STATE_FILE" ]]; then
+    die "not initialized (state file $STATE_FILE not found) — run \`init\` first"
+  fi
+  read_state "$STATE_FILE"
+  if [[ -z "${DATABASE_ID:-}" || -z "${WORKSPACE_ID:-}" || -z "${WORKER_NAME:-}" || -z "${DATABASE_NAME:-}" ]]; then
+    die "state file $STATE_FILE is missing required fields (DATABASE_ID, DATABASE_NAME, WORKSPACE_ID, WORKER_NAME)"
+  fi
+
+  log_step "preflight: wrangler authentication"
+  run_cmd wrangler whoami >/dev/null
+
+  log_step "reconcile wrangler.toml from state"
+  require_file "$WRANGLER_TOML"
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" database_id "$DATABASE_ID"
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" WORKSPACE_ID "$WORKSPACE_ID"
+  if [[ -n "${DOMAIN:-}" ]]; then
+    run_cmd patch_wrangler_toml_route "$WRANGLER_TOML" "$DOMAIN"
+  else
+    run_cmd unpatch_wrangler_toml_route "$WRANGLER_TOML"
+  fi
+
+  log_step "apply D1 migrations"
+  run_cmd wrangler d1 migrations apply "$DATABASE_NAME" --remote
+
+  log_step "build web package (VITE_SINGLE_ORIGIN=true)"
+  ( cd "$REPO_ROOT" && VITE_SINGLE_ORIGIN=true run_cmd pnpm --filter @mostly/web build )
+
+  log_step "build worker bundle"
+  ( cd "$REPO_ROOT" && run_cmd pnpm --filter @mostly/server build:worker )
+
+  log_step "deploy worker"
+  local deploy_output new_url
+  # In dry-run we substitute a canned wrangler deploy stdout so parse_deploy_url
+  # has a URL to extract for the drift check below.
+  deploy_output=$(
+    cd "$REPO_ROOT" && run_cmd_capture \
+      $' ⛅️ wrangler 0.0.0\n  https://mostly.dry-run.workers.dev\nDeployment ID: dry-run\n' \
+      wrangler deploy 2>&1
+  )
+  printf '%s\n' "$deploy_output"
+  new_url=$(parse_deploy_url "$deploy_output")
+
+  if [[ "$new_url" != "${WORKER_URL:-}" ]]; then
+    log_warn "deployed URL changed from ${WORKER_URL:-(unset)} to $new_url, updating state"
+    if is_dry_run; then
+      printf 'would-write: %s\n' "$STATE_FILE" >&2
+    else
+      # Rewrite WORKER_URL in the state file by re-writing it from scratch.
+      write_state "$STATE_FILE" \
+        "DATABASE_ID=$DATABASE_ID" \
+        "DATABASE_NAME=$DATABASE_NAME" \
+        "WORKSPACE_ID=$WORKSPACE_ID" \
+        "WORKSPACE_SLUG=${WORKSPACE_SLUG:-default}" \
+        "WORKER_NAME=$WORKER_NAME" \
+        "WORKER_URL=$new_url" \
+        "ADMIN_HANDLE=${ADMIN_HANDLE:-}" \
+        "DOMAIN=${DOMAIN:-}"
+    fi
+  fi
+
+  log_step "done"
+  cat <<EOF
+
+Mostly updated.
+  URL:         $new_url
+  Migrations:  applied
+  Worker:      deployed
+EOF
 }
 
 cmd_destroy() {
