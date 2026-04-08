@@ -456,3 +456,102 @@ TOML
   toml_after=$(cat "$tmp_toml")
   [ "$toml_before" = "$toml_after" ]
 }
+
+@test "update detects worker URL drift and rewrites the state file" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  # Seed a WORKER_URL that does NOT match what the wrangler stub emits
+  # (https://mostly.test.workers.dev), so the drift branch in cmd_update
+  # fires and rewrites the state file.
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://old.stale.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update
+  [ "$status" -eq 0 ]
+  # The drift warning must fire with both URLs.
+  [[ "$output" == *"deployed URL changed from https://old.stale.workers.dev to https://mostly.test.workers.dev"* ]]
+  # The state file must have been rewritten with the new URL.
+  run cat "$tmp_state"
+  [[ "$output" == *"WORKER_URL='https://mostly.test.workers.dev'"* ]]
+  # The stale URL must be gone entirely.
+  [[ "$output" != *"old.stale.workers.dev"* ]]
+  # Other fields must be preserved by the rewrite.
+  [[ "$output" == *"DATABASE_ID='existing-db-id'"* ]]
+  [[ "$output" == *"DATABASE_NAME='mostly-db'"* ]]
+  [[ "$output" == *"WORKSPACE_ID='01WORKSPACE000000000000001'"* ]]
+  [[ "$output" == *"WORKSPACE_SLUG='default'"* ]]
+  [[ "$output" == *"WORKER_NAME='mostly'"* ]]
+  [[ "$output" == *"ADMIN_HANDLE='admin'"* ]]
+}
+
+@test "update --dry-run detects drift, prints would-write, but leaves the state file alone" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://old.stale.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  state_before=$(cat "$tmp_state")
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update --dry-run
+  [ "$status" -eq 0 ]
+  # Drift warning still fires in dry-run. In dry-run, run_cmd_capture emits
+  # the canned wrangler-deploy stdout (https://mostly.dry-run.workers.dev),
+  # not the stub's output — the test asserts against that.
+  [[ "$output" == *"deployed URL changed from https://old.stale.workers.dev to https://mostly.dry-run.workers.dev"* ]]
+  # And the would-write trace points at the state file.
+  [[ "$output" == *"would-write:"*"$tmp_state"* ]]
+  # But the state file content must be unchanged.
+  state_after=$(cat "$tmp_state")
+  [ "$state_before" = "$state_after" ]
+}
+
+@test "update with DOMAIN in state adds a route to wrangler.toml" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=existing-db-id
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=mostly.example.com
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" update
+  [ "$status" -eq 0 ]
+  run grep 'route = ' "$tmp_toml"
+  [[ "$output" == *'pattern = "mostly.example.com/*"'* ]]
+  [[ "$output" == *'custom_domain = true'* ]]
+}
