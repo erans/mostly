@@ -13,6 +13,15 @@ interface ConfigContextValue {
 const STORAGE_KEY = 'mostly-config';
 
 function loadConfig(): AppConfig | null {
+  // When the web app is built for a single-worker Cloudflare deploy
+  // (VITE_SINGLE_ORIGIN=true at build time), the frontend is being served
+  // from the same origin as the API. Skip SetupScreen entirely and use
+  // window.location.origin. This path does not touch localStorage — the
+  // build flag is the source of truth.
+  if (import.meta.env.VITE_SINGLE_ORIGIN === 'true') {
+    return { serverUrl: window.location.origin };
+  }
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
