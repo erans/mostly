@@ -104,9 +104,9 @@ setup() {
   run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' DATABASE_ID=abc WORKSPACE_ID=def WORKER_URL=https://x.workers.dev"
   [ "$status" -eq 0 ]
   run cat "$tmp"
-  [ "$output" = "DATABASE_ID=abc
-WORKSPACE_ID=def
-WORKER_URL=https://x.workers.dev" ]
+  [ "$output" = "DATABASE_ID='abc'
+WORKSPACE_ID='def'
+WORKER_URL='https://x.workers.dev'" ]
   rm -f "$tmp"
 }
 
@@ -162,4 +162,53 @@ WORKER_URL=https://x.workers.dev" ]
 @test "validate_slug rejects empty string" {
   run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && validate_slug ''"
   [ "$status" -eq 1 ]
+}
+
+@test "write_state rejects empty path" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '' K=v"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"empty path"* ]]
+}
+
+@test "write_state rejects bareword pair without equals" {
+  tmp=$(mktemp); rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' BAREWORD"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"invalid pair"* ]]
+}
+
+@test "write_state rejects key with invalid characters" {
+  tmp=$(mktemp); rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' '1BAD=v'"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"invalid key"* ]]
+}
+
+@test "write_state rejects value containing newline" {
+  tmp=$(mktemp); rm -f "$tmp"
+  pair=$'K=line1\nline2'
+  run env PAIR="$pair" bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' \"\$PAIR\""
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"newline"* ]]
+  rm -f "$tmp"
+}
+
+@test "write_state quotes values to neutralize command substitution" {
+  tmp=$(mktemp); rm -f "$tmp"
+  rm -f /tmp/pwned-by-write-state-test
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' 'EVIL=\$(touch /tmp/pwned-by-write-state-test)'"
+  [ "$status" -eq 0 ]
+  run bash -c "source '$tmp' && echo \"value=\$EVIL\""
+  [[ "$output" == *'value=$(touch /tmp/pwned-by-write-state-test)'* ]]
+  [ ! -f /tmp/pwned-by-write-state-test ]
+  rm -f "$tmp"
+}
+
+@test "write_state creates the file with 600 permissions" {
+  tmp=$(mktemp); rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && write_state '$tmp' K=v"
+  [ "$status" -eq 0 ]
+  perms=$(stat -c '%a' "$tmp" 2>/dev/null || stat -f '%A' "$tmp")
+  [ "$perms" = "600" ]
+  rm -f "$tmp"
 }

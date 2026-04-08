@@ -72,21 +72,40 @@ require_file() {
 }
 
 # Write a KEY=value state file. Each argument after the first is a
-# KEY=VALUE pair. Rejects values containing single quotes because the
-# file is meant to be `source`-able and a quoted value with embedded
-# single quotes would need escaping we don't want to deal with.
+# KEY=VALUE pair. Values are written single-quoted so the file is safe to
+# source even if values contain shell metacharacters; we reject single
+# quotes, newlines, and carriage returns in values to keep the quoting
+# scheme bulletproof. The file is chmod 600 after creation as a defensive
+# measure.
 write_state() {
   local path="$1"
+  if [[ -z "$path" ]]; then
+    die "write_state: empty path"
+  fi
   shift
-  local pair
+  local pair key value
   for pair in "$@"; do
-    if [[ "$pair" == *"'"* ]]; then
+    if [[ "$pair" != *=* ]]; then
+      die "write_state: invalid pair (expected KEY=value): $pair"
+    fi
+    key="${pair%%=*}"
+    value="${pair#*=}"
+    if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      die "write_state: invalid key (must match ^[A-Za-z_][A-Za-z0-9_]*\$): $key"
+    fi
+    if [[ "$value" == *"'"* ]]; then
       die "write_state: refusing to write value containing a single quote: $pair"
+    fi
+    if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+      die "write_state: refusing to write value containing a newline: $pair"
     fi
   done
   : > "$path"
+  chmod 600 "$path"
   for pair in "$@"; do
-    printf '%s\n' "$pair" >> "$path"
+    key="${pair%%=*}"
+    value="${pair#*=}"
+    printf "%s='%s'\n" "$key" "$value" >> "$path"
   done
 }
 
