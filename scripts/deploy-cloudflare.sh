@@ -209,18 +209,27 @@ cmd_init() {
   worker_url=$(parse_deploy_url "$deploy_output")
 
   log_step "register first admin"
-  local cookie_jar
+  local cookie_jar register_body_file
   cookie_jar=$(mktemp)
+  # Body file sits next to the cookie jar, so a single trap cleans both up.
+  # mktemp creates with mode 600, so the password is never world-readable.
+  register_body_file=$(mktemp)
   # shellcheck disable=SC2064
-  trap "rm -f '$cookie_jar'" EXIT
+  trap "rm -f '$cookie_jar' '$register_body_file'" EXIT
 
-  local register_body
-  register_body=$(printf '{"handle":"%s","password":"%s","display_name":"%s"}' \
-    "$admin_handle" "$admin_password" "$admin_handle")
+  # Build the JSON body with jq so passwords containing quotes, backslashes,
+  # or control characters are escaped correctly, and write it to a mode-600
+  # file so the plaintext password never lands in argv (and therefore never
+  # in the dry-run trace, `ps` output, or CI logs).
+  jq -nc --arg handle "$admin_handle" \
+         --arg password "$admin_password" \
+         --arg display "$admin_handle" \
+         '{handle: $handle, password: $password, display_name: $display}' \
+    > "$register_body_file"
   retry_once 2 run_cmd_capture '{"principal":{"id":"01DRY","handle":"admin"}}' \
     curl -sS -c "$cookie_jar" -X POST "$worker_url/v0/auth/register" \
     -H 'Content-Type: application/json' \
-    -d "$register_body" >/dev/null
+    -d "@$register_body_file" >/dev/null
 
   log_step "mint admin API key"
   local key_response api_key
@@ -243,11 +252,19 @@ cmd_init() {
   agent_hash=$(printf %s "$agent_token" | run_cmd_capture \
     '(stdin)= 0000000000000000000000000000000000000000000000000000000000000000' \
     openssl dgst -sha256 -hex | awk '{print $2}')
+  if [[ ! "$agent_hash" =~ ^[0-9a-f]{64}$ ]]; then
+    die "openssl dgst returned a malformed sha256 hash: $agent_hash"
+  fi
+  # SAFETY: same invariant as the workspace INSERT above. $agent_hash is
+  # validated to be a 64-char lowercase hex string by the regex check
+  # immediately above; $workspace_id is WORKSPACE_ID_DEFAULT. Any value
+  # added to this UPDATE in future tasks must hold that invariant or be
+  # parameterized via a prepared statement.
   run_cmd wrangler d1 execute "$DATABASE_NAME_DEFAULT" --remote --command \
     "UPDATE workspace SET agent_token_hash = '$agent_hash', updated_at = datetime('now') WHERE id = '$workspace_id';"
 
   log_step "persist state file"
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  if is_dry_run; then
     printf 'would-write: %s\n' "$STATE_FILE" >&2
   else
     write_state "$STATE_FILE" \

@@ -217,13 +217,22 @@ retry_once() {
   "$@"
 }
 
+# Single source of truth for the dry-run gate. Accepts 1, true, or yes.
+# Any other value (including unset) means "run for real". Used by run_cmd,
+# run_cmd_capture, and any caller that needs to gate a local side-effect
+# (e.g. writing the state file) on the same predicate so the three cannot
+# drift apart.
+is_dry_run() {
+  [[ "${DRY_RUN:-0}" =~ ^(1|true|yes)$ ]]
+}
+
 # Run a command, or print "would-run: <cmd>" to stderr and skip execution
-# if DRY_RUN=1 is set in the environment. Use this for fire-and-forget
+# if DRY_RUN is truthy (see is_dry_run). Use this for fire-and-forget
 # external commands whose stdout is not captured. The would-run line goes
 # to stderr so that callers can still redirect command stdout (e.g.
 # `run_cmd wrangler whoami >/dev/null`) without losing the dry-run trace.
 run_cmd() {
-  if [[ "${DRY_RUN:-0}" =~ ^(1|true|yes)$ ]]; then
+  if is_dry_run; then
     local IFS=' '
     printf 'would-run: %s\n' "$*" >&2
     return 0
@@ -232,7 +241,7 @@ run_cmd() {
 }
 
 # Run a command and emit its stdout, or print "would-run: <cmd>" to
-# stderr and emit canned stdout if DRY_RUN=1 is set. Use this for
+# stderr and emit canned stdout if DRY_RUN is truthy. Use this for
 # external commands whose stdout downstream code parses (e.g.
 # `wrangler d1 create --json`, `wrangler deploy`, the curl calls that
 # return JSON the script needs to thread through). The first argument
@@ -240,7 +249,7 @@ run_cmd() {
 run_cmd_capture() {
   local canned="$1"
   shift
-  if [[ "${DRY_RUN:-0}" =~ ^(1|true|yes)$ ]]; then
+  if is_dry_run; then
     local IFS=' '
     printf 'would-run: %s\n' "$*" >&2
     printf '%s\n' "$canned"

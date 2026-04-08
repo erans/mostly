@@ -11,8 +11,13 @@ case "$1" in
     echo "deadbeefcafed00dfeedfacebeeff00ddeadbeefcafed00dfeedfacebeeff00d"
     ;;
   dgst)
-    # openssl dgst -sha256 -hex → "(stdin)= <hex>"
-    echo "(stdin)= fabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfa"
+    if [[ "${STUB_OPENSSL_DGST_BAD:-0}" = 1 ]]; then
+      # Exercises the malformed-hash branch: awk's $2 will be "not-a-hash".
+      echo "(stdin)= not-a-hash"
+    else
+      # openssl dgst -sha256 -hex → "(stdin)= <hex>"
+      echo "(stdin)= fabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfa"
+    fi
     ;;
   *)
     echo "stub openssl: unknown command $*" >&2

@@ -287,3 +287,55 @@ TOML
   # And the state file must not exist.
   [ ! -f "$tmp_state" ]
 }
+
+@test "init --dry-run never puts the admin password in the dry-run trace" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  # Use a recognizable password so a substring scan of the trace is conclusive.
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password 'unique-trace-canary-pw' --dry-run
+  [ "$status" -eq 0 ]
+  # The register call must use -d @<file>, not -d <body>, so the would-run
+  # line shows only the file path and never the plaintext password.
+  [[ "$output" != *"unique-trace-canary-pw"* ]]
+  [[ "$output" == *"would-run: curl"*"-d @"* ]]
+}
+
+@test "DRY_RUN=true env var (not --dry-run flag) still leaves the state file alone" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  DRY_RUN=true STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" \
+    run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
+  [ "$status" -eq 0 ]
+  # The state file must not exist — the write must be gated on the same
+  # predicate as run_cmd/run_cmd_capture, which accept true/yes as well as 1.
+  [ ! -f "$tmp_state" ]
+  [[ "$output" == *"would-write:"*"$tmp_state"* ]]
+}
+
+@test "init rejects a malformed agent hash from openssl" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STUB_OPENSSL_DGST_BAD=1 STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" \
+    run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"malformed sha256 hash"* ]]
+}
