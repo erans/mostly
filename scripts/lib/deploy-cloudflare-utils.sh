@@ -28,20 +28,25 @@ IFS=$'\n\t'
 # shellcheck disable=SC2034  # Used by the trap in deploy-cloudflare.sh (Task 5).
 CURRENT_STEP="(not started)"
 
+# Call from the top-level shell, not a subshell — CURRENT_STEP is read by the
+# ERR trap in the entry script and won't propagate out of $(...) or pipelines.
 log_step() {
-  local message="$1"
+  local IFS=' '
+  local message="$*"
   # shellcheck disable=SC2034  # Read by the trap in deploy-cloudflare.sh (Task 7+).
   CURRENT_STEP="$message"
   printf '==> %s\n' "$message" >&2
 }
 
 log_warn() {
-  local message="$1"
+  local IFS=' '
+  local message="$*"
   printf '[WARN] %s\n' "$message" >&2
 }
 
 die() {
-  local message="$1"
+  local IFS=' '
+  local message="$*"
   printf '[ERROR] %s\n' "$message" >&2
   exit 1
 }
@@ -55,7 +60,13 @@ require_cmd() {
 
 require_file() {
   local path="$1"
-  if [[ ! -f "$path" ]]; then
+  if [[ -z "$path" ]]; then
+    die "require_file: empty path"
+  fi
+  if [[ ! -e "$path" ]]; then
     die "required file not found: $path"
+  fi
+  if [[ ! -f "$path" ]]; then
+    die "required path is not a regular file: $path"
   fi
 }

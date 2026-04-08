@@ -32,6 +32,24 @@ setup() {
   [[ "$output" == *"bad things"* ]]
 }
 
+@test "log_step writes nothing to stdout" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && log_step 'hello' 2>/dev/null"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "log_warn writes nothing to stdout" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && log_warn 'careful' 2>/dev/null"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "die writes nothing to stdout" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && die 'oops' 2>/dev/null"
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
 @test "require_cmd succeeds when the command exists" {
   run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && require_cmd bash"
   [ "$status" -eq 0 ]
@@ -55,4 +73,28 @@ setup() {
   run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && require_file /tmp/definitely-not-there-xyz"
   [ "$status" -eq 1 ]
   [[ "$output" == *"/tmp/definitely-not-there-xyz"* ]]
+}
+
+@test "die concatenates multi-arg messages with spaces" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && die 'invalid slug:' 'bad-value'"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"invalid slug: bad-value"* ]]
+}
+
+@test "log_warn concatenates multi-arg messages with spaces" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && log_warn 'two' 'words' 2>&1 >/dev/null"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"two words"* ]]
+}
+
+@test "require_file fails with a clear message when the path is a directory" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && require_file /tmp"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not a regular file"* ]]
+}
+
+@test "require_file fails with empty-path message when called with no path" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && require_file ''"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"empty path"* ]]
 }
