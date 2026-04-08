@@ -41,10 +41,9 @@ TOML
   STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
     --dry-run --admin-handle admin --admin-password pw --domain mostly.example.com
   [ "$status" -eq 0 ]
-  [[ "$output" == *"init"* ]]
-  [[ "$output" == *"dry_run=1"* ]]
   [[ "$output" == *"would-run: patch_wrangler_toml_route"* ]]
   [[ "$output" == *"mostly.example.com"* ]]
+  [[ "$output" == *"would-write:"*"$tmp_state"* ]]
 }
 
 @test "init rejects an invalid workspace slug" {
@@ -186,4 +185,105 @@ TOML
     run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
   [ "$status" -eq 1 ]
   [[ "$output" == *"could not parse database_id"* ]]
+}
+
+@test "init records pnpm build calls for web and server via stubs" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password pw
+  [ "$status" -eq 0 ]
+  run cat "$STUB_LOG_FILE"
+  [[ "$output" == *"pnpm --filter @mostly/web build"* ]]
+  [[ "$output" == *"pnpm --filter @mostly/server build:worker"* ]]
+  [[ "$output" == *"wrangler deploy"* ]]
+}
+
+@test "init records register and api-keys curl calls via stubs" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password pw
+  [ "$status" -eq 0 ]
+  run cat "$STUB_LOG_FILE"
+  [[ "$output" == *"curl"* ]]
+  [[ "$output" == *"/v0/auth/register"* ]]
+  [[ "$output" == *"/v0/auth/api-keys"* ]]
+  [[ "$output" == *"UPDATE workspace SET agent_token_hash"* ]]
+}
+
+@test "init writes .cloudflare.env on success" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password pw
+  [ "$status" -eq 0 ]
+  [ -f "$tmp_state" ]
+  run cat "$tmp_state"
+  [[ "$output" == *"DATABASE_ID='00000000-0000-0000-0000-000000000001'"* ]]
+  [[ "$output" == *"WORKSPACE_ID='01WORKSPACE000000000000001'"* ]]
+  [[ "$output" == *"WORKER_URL='https://mostly.test.workers.dev'"* ]]
+  [[ "$output" == *"ADMIN_HANDLE='admin'"* ]]
+}
+
+@test "init prints the admin API key and agent token in the summary" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password pw
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"msk_stub"* ]]
+  [[ "$output" == *"mat_deadbeefcafed00d"* ]]
+}
+
+@test "init --dry-run prints would-run lines for build/deploy/bootstrap and writes nothing" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run "$SCRIPT_DIR/deploy-cloudflare.sh" init \
+    --admin-handle admin --admin-password pw --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: pnpm --filter @mostly/web build"* ]]
+  [[ "$output" == *"would-run: pnpm --filter @mostly/server build:worker"* ]]
+  [[ "$output" == *"would-run: wrangler deploy"* ]]
+  [[ "$output" == *"would-run: curl"*"/v0/auth/register"* ]]
+  [[ "$output" == *"would-run: curl"*"/v0/auth/api-keys"* ]]
+  [[ "$output" == *"would-run: openssl rand"* ]]
+  [[ "$output" == *"would-run: openssl dgst"* ]]
+  [[ "$output" == *"would-run: wrangler d1 execute"*"UPDATE workspace SET agent_token_hash"* ]]
+  [[ "$output" == *"would-write:"*"$tmp_state"* ]]
+  # Stub log must be empty: nothing should have actually run.
+  run cat "$STUB_LOG_FILE"
+  [ "$output" = "" ]
+  # And the state file must not exist.
+  [ ! -f "$tmp_state" ]
 }

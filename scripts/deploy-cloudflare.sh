@@ -190,9 +190,93 @@ cmd_init() {
     run_cmd patch_wrangler_toml_route "$WRANGLER_TOML" "$domain"
   fi
 
-  # Task 10 continues from here (build, deploy, bootstrap, state file, summary).
-  printf 'init preflight+provision complete. database_id=%s workspace_id=%s dry_run=%s\n' \
-    "$database_id" "$workspace_id" "${DRY_RUN:-0}"
+  log_step "build web package (VITE_SINGLE_ORIGIN=true)"
+  ( cd "$REPO_ROOT" && VITE_SINGLE_ORIGIN=true run_cmd pnpm --filter @mostly/web build )
+
+  log_step "build worker bundle"
+  ( cd "$REPO_ROOT" && run_cmd pnpm --filter @mostly/server build:worker )
+
+  log_step "deploy worker"
+  local deploy_output worker_url
+  # In dry-run we substitute a canned wrangler deploy stdout so parse_deploy_url
+  # can still extract a URL the rest of the bootstrap depends on.
+  deploy_output=$(
+    cd "$REPO_ROOT" && run_cmd_capture \
+      $' ⛅️ wrangler 0.0.0\n  https://mostly.dry-run.workers.dev\nDeployment ID: dry-run\n' \
+      wrangler deploy 2>&1
+  )
+  printf '%s\n' "$deploy_output"
+  worker_url=$(parse_deploy_url "$deploy_output")
+
+  log_step "register first admin"
+  local cookie_jar
+  cookie_jar=$(mktemp)
+  # shellcheck disable=SC2064
+  trap "rm -f '$cookie_jar'" EXIT
+
+  local register_body
+  register_body=$(printf '{"handle":"%s","password":"%s","display_name":"%s"}' \
+    "$admin_handle" "$admin_password" "$admin_handle")
+  retry_once 2 run_cmd_capture '{"principal":{"id":"01DRY","handle":"admin"}}' \
+    curl -sS -c "$cookie_jar" -X POST "$worker_url/v0/auth/register" \
+    -H 'Content-Type: application/json' \
+    -d "$register_body" >/dev/null
+
+  log_step "mint admin API key"
+  local key_response api_key
+  key_response=$(retry_once 2 run_cmd_capture \
+    '{"id":"01DRY_KEY","name":"admin-cli","key":"msk_dry000000000000000000000000000000000000000000000000000000000000"}' \
+    curl -sS -b "$cookie_jar" -X POST "$worker_url/v0/auth/api-keys" \
+    -H 'Content-Type: application/json' \
+    -d '{"name":"admin-cli"}')
+  api_key=$(printf '%s' "$key_response" | jq -r '.key')
+  if [[ -z "$api_key" || "$api_key" == "null" ]]; then
+    die "could not parse api_key from response: $key_response"
+  fi
+
+  log_step "install workspace agent token"
+  local agent_token_hex agent_token agent_hash
+  agent_token_hex=$(run_cmd_capture \
+    'deadbeefcafed00dfeedfacebeeff00ddeadbeefcafed00dfeedfacebeeff00d' \
+    openssl rand -hex 32)
+  agent_token="mat_$agent_token_hex"
+  agent_hash=$(printf %s "$agent_token" | run_cmd_capture \
+    '(stdin)= 0000000000000000000000000000000000000000000000000000000000000000' \
+    openssl dgst -sha256 -hex | awk '{print $2}')
+  run_cmd wrangler d1 execute "$DATABASE_NAME_DEFAULT" --remote --command \
+    "UPDATE workspace SET agent_token_hash = '$agent_hash', updated_at = datetime('now') WHERE id = '$workspace_id';"
+
+  log_step "persist state file"
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    printf 'would-write: %s\n' "$STATE_FILE" >&2
+  else
+    write_state "$STATE_FILE" \
+      "DATABASE_ID=$database_id" \
+      "DATABASE_NAME=$DATABASE_NAME_DEFAULT" \
+      "WORKSPACE_ID=$workspace_id" \
+      "WORKSPACE_SLUG=$workspace_slug" \
+      "WORKER_NAME=$WORKER_NAME_DEFAULT" \
+      "WORKER_URL=$worker_url" \
+      "ADMIN_HANDLE=$admin_handle" \
+      "DOMAIN=$domain"
+  fi
+
+  log_step "done"
+  cat <<EOF
+
+Mostly deployed successfully.
+
+URL:          $worker_url
+Admin:        $admin_handle
+API key:      $api_key                   (save this — shown only once)
+Agent token:  $agent_token                   (save this — shown only once)
+
+Configure your CLI:
+  mostly config set server_url $worker_url
+  mostly config set api_key $api_key
+
+State saved to $STATE_FILE (gitignored).
+EOF
 }
 
 cmd_update() {
