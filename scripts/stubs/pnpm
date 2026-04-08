@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Fake pnpm: records invocations and emits a success line for build calls.
+
+if [[ -n "${STUB_LOG_FILE:-}" ]]; then
+  echo "pnpm $*" >> "$STUB_LOG_FILE"
+fi
+
+echo "(stub) pnpm $*"
+exit 0

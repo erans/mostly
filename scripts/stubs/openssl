@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Fake openssl: records invocations, emits deterministic canned output.
+
+if [[ -n "${STUB_LOG_FILE:-}" ]]; then
+  echo "openssl $*" >> "$STUB_LOG_FILE"
+fi
+
+case "$1" in
+  rand)
+    # openssl rand -hex 32 → deterministic fake hex (64 chars)
+    echo "deadbeefcafed00dfeedfacebeeff00ddeadbeefcafed00dfeedfacebeeff00d"
+    ;;
+  dgst)
+    if [[ "${STUB_OPENSSL_DGST_BAD:-0}" = 1 ]]; then
+      # Exercises the malformed-hash branch: awk's $2 will be "not-a-hash".
+      echo "(stdin)= not-a-hash"
+    else
+      # openssl dgst -sha256 -hex → "(stdin)= <hex>"
+      echo "(stdin)= fabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfa"
+    fi
+    ;;
+  *)
+    echo "stub openssl: unknown command $*" >&2
+    exit 1
+    ;;
+esac

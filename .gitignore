@@ -9,3 +9,6 @@ dist/
 .worktrees/
 .wrangler/
 .superpowers/
+
+# Cloudflare deployment state (populated by scripts/deploy-cloudflare.sh init)
+.cloudflare.env

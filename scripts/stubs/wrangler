@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Fake wrangler: records invocations and emits canned output for tests.
+
+if [[ -n "${STUB_LOG_FILE:-}" ]]; then
+  echo "wrangler $*" >> "$STUB_LOG_FILE"
+fi
+
+case "$1" in
+  whoami)
+    echo "You are logged in as test@example.com"
+    ;;
+  d1)
+    case "$2" in
+      create)
+        if [[ "${STUB_WRANGLER_D1_CREATE_BAD:-0}" = 1 ]]; then
+          # Emits no uuid field — exercises the parse-failure branch.
+          echo '{"name":"mostly-db"}'
+        elif [[ " $* " == *" --json "* ]]; then
+          echo '{"name":"mostly-db","uuid":"00000000-0000-0000-0000-000000000001"}'
+        else
+          echo "✅ Created DB 'mostly-db' (00000000-0000-0000-0000-000000000001)"
+        fi
+        ;;
+      migrations)
+        echo "Migrations applied: 0000_brief_toxin.sql, 0001_youthful_mother_askani.sql"
+        ;;
+      execute)
+        echo "🚣 Executed 1 command"
+        ;;
+      delete)
+        echo "✅ Deleted database 'mostly-db'"
+        ;;
+      *)
+        echo "stub wrangler: unknown d1 subcommand $2" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  deploy)
+    # A recognizable fake deployed URL the script can parse.
+    cat <<'OUT'
+ ⛅️ wrangler 3.85.0
+-------------------
+Total Upload: 100.00 KiB / gzip: 30.00 KiB
+Uploaded mostly (1.23 sec)
+Published mostly (0.45 sec)
+  https://mostly.test.workers.dev
+Current Deployment ID: 00000000-0000-0000-0000-0000000000aa
+OUT
+    ;;
+  delete)
+    # wrangler delete (worker, not d1)
+    echo "✅ Worker mostly deleted"
+    ;;
+  *)
+    echo "stub wrangler: unknown command $*" >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Fake curl: records invocations and emits canned JSON bodies for the
+# /v0/auth/register and /v0/auth/api-keys calls the deploy script makes.
+
+if [[ -n "${STUB_LOG_FILE:-}" ]]; then
+  echo "curl $*" >> "$STUB_LOG_FILE"
+fi
+
+# Last positional arg is the URL for the calls we care about.
+url=""
+prev=""
+for arg in "$@"; do
+  case "$prev" in
+    -H|--header|--resolve|--url|-e|--referer)
+      prev="$arg"
+      continue
+      ;;
+  esac
+  case "$arg" in
+    http://*|https://*) url="$arg" ;;
+  esac
+  prev="$arg"
+done
+
+# Write a fake Set-Cookie header if -c <file> is given (cookie jar), so the
+# downstream -b <same-file> call has something to consume.
+cookie_file=""
+prev=""
+for arg in "$@"; do
+  if [[ "$prev" == "-c" ]]; then
+    cookie_file="$arg"
+  fi
+  prev="$arg"
+done
+if [[ -n "$cookie_file" ]]; then
+  printf 'mostly.test.workers.dev\tFALSE\t/\tTRUE\t0\tmostly_session\tfake-session\n' > "$cookie_file"
+fi
+
+case "$url" in
+  *"/v0/auth/register")
+    echo '{"principal":{"id":"01STUB_ADMIN","handle":"admin","display_name":"admin"}}'
+    ;;
+  *"/v0/auth/login")
+    echo '{"principal":{"id":"01STUB_ADMIN","handle":"admin","display_name":"admin"}}'
+    ;;
+  *"/v0/auth/api-keys")
+    echo '{"id":"01STUB_KEY","name":"admin-cli","key":"msk_stub000000000000000000000000000000000000000000000000000000000000"}'
+    ;;
+  *)
+    echo '{"ok":true}'
+    ;;
+esac
