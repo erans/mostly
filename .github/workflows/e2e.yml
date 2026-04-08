@@ -48,3 +48,19 @@ jobs:
           name: e2e-server-logs
           path: /tmp/mostly-e2e-server.log
           retention-days: 7
+
+  deploy-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats-core and shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats shellcheck
+      - name: shellcheck the deploy script and helpers
+        run: |
+          shellcheck scripts/deploy-cloudflare.sh \
+                     scripts/lib/deploy-cloudflare-utils.sh \
+                     scripts/stubs/*
+      - name: Run bats tests
+        run: bats scripts/__tests__/
