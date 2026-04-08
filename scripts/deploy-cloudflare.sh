@@ -131,10 +131,16 @@ cmd_init() {
 
   # Prompt for missing credentials
   if [[ -z "$admin_handle" ]]; then
+    if [[ ! -t 0 ]]; then
+      die "admin handle required (stdin is not a TTY; pass --admin-handle)"
+    fi
     read -rp "admin handle: " admin_handle
     validate_slug "$admin_handle"
   fi
   if [[ -z "$admin_password" ]]; then
+    if [[ ! -t 0 ]]; then
+      die "admin password required (stdin is not a TTY; pass --admin-password)"
+    fi
     local confirm=""
     read -rsp "admin password: " admin_password
     echo
@@ -153,8 +159,8 @@ cmd_init() {
   create_json=$(run_cmd_capture \
     '{"uuid":"00000000-0000-0000-0000-000000000001","name":"mostly-db"}' \
     wrangler d1 create "$DATABASE_NAME_DEFAULT" --json)
-  database_id=$(printf '%s' "$create_json" | jq -r '.uuid')
-  if [[ -z "$database_id" || "$database_id" == "null" ]]; then
+  database_id=$(printf '%s' "$create_json" | jq -r 'if type == "object" then .uuid else error("expected single JSON object") end')
+  if [[ -z "$database_id" || "$database_id" == "null" || "$database_id" == *$'\n'* ]]; then
     die "could not parse database_id from wrangler output: $create_json"
   fi
 
@@ -166,8 +172,13 @@ cmd_init() {
 
   log_step "seed workspace row"
   local workspace_id="$WORKSPACE_ID_DEFAULT"
-  # validate_slug has already enforced [a-z][a-z0-9-]{0,62} on workspace_slug,
-  # so the INSERT cannot break out of the quoted string.
+  # SAFETY: every value interpolated into the SQL string below MUST be either
+  # validated by validate_slug (which enforces ^[a-z][a-z0-9-]{0,62}$ and
+  # therefore cannot break out of a single-quoted string) or a hard-coded
+  # constant defined at the top of this script. validate_slug has already
+  # run on $workspace_slug; $workspace_id is WORKSPACE_ID_DEFAULT. Anything
+  # added here in future tasks must hold that invariant or be parameterized
+  # via a prepared statement instead.
   run_cmd wrangler d1 execute "$DATABASE_NAME_DEFAULT" --remote --command \
     "INSERT OR IGNORE INTO workspace (id, slug, name, created_at, updated_at) VALUES ('$workspace_id', '$workspace_slug', 'Default Workspace', datetime('now'), datetime('now'));"
 

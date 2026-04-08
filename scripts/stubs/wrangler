@@ -12,8 +12,10 @@ case "$1" in
   d1)
     case "$2" in
       create)
-        # wrangler d1 create --json → {"name":"mostly-db","uuid":"00000000-0000-0000-0000-000000000001"}
-        if [[ " $* " == *" --json "* ]]; then
+        if [[ "${STUB_WRANGLER_D1_CREATE_BAD:-0}" = 1 ]]; then
+          # Emits no uuid field — exercises the parse-failure branch.
+          echo '{"name":"mostly-db"}'
+        elif [[ " $* " == *" --json "* ]]; then
           echo '{"name":"mostly-db","uuid":"00000000-0000-0000-0000-000000000001"}'
         else
           echo "✅ Created DB 'mostly-db' (00000000-0000-0000-0000-000000000001)"

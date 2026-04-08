@@ -29,8 +29,8 @@ teardown() {
 }
 
 @test "init --dry-run with --domain prints would-run lines and parses domain into a route patch" {
-  tmp_state="/tmp/mostly-bats-state-$$"
-  tmp_toml="/tmp/mostly-bats-toml-$$"
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
   cat > "$tmp_toml" <<'TOML'
 [[d1_databases]]
 database_id = ""
@@ -45,7 +45,6 @@ TOML
   [[ "$output" == *"dry_run=1"* ]]
   [[ "$output" == *"would-run: patch_wrangler_toml_route"* ]]
   [[ "$output" == *"mostly.example.com"* ]]
-  rm -f "$tmp_state" "$tmp_toml"
 }
 
 @test "init rejects an invalid workspace slug" {
@@ -94,17 +93,16 @@ TOML
 }
 
 @test "init refuses to run if .cloudflare.env already exists" {
-  tmp_state=$(mktemp)
+  tmp_state="$BATS_TEST_TMPDIR/state"
   printf 'DATABASE_ID=xyz\n' > "$tmp_state"
   STATE_FILE="$tmp_state" run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
   [ "$status" -eq 1 ]
   [[ "$output" == *"already initialized"* ]]
-  rm -f "$tmp_state"
 }
 
 @test "init records wrangler d1 create, migrations apply, and workspace seed via stubs" {
-  tmp_state="/tmp/mostly-bats-state-$$"
-  tmp_toml="/tmp/mostly-bats-toml-$$"
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
   cat > "$tmp_toml" <<'TOML'
 [[d1_databases]]
 database_id = ""
@@ -122,12 +120,11 @@ TOML
   [[ "$output" == *"wrangler d1 create"* ]]
   [[ "$output" == *"wrangler d1 migrations apply"* ]]
   [[ "$output" == *"INSERT OR IGNORE INTO workspace"* ]]
-  rm -f "$tmp_state" "$tmp_toml"
 }
 
 @test "init patches wrangler.toml database_id and WORKSPACE_ID after provisioning" {
-  tmp_state="/tmp/mostly-bats-state-$$"
-  tmp_toml="/tmp/mostly-bats-toml-$$"
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
   cat > "$tmp_toml" <<'TOML'
 [[d1_databases]]
 binding = "DB"
@@ -146,12 +143,11 @@ TOML
   [[ "$output" == *'database_id = "00000000-0000-0000-0000-000000000001"'* ]]
   run grep 'WORKSPACE_ID' "$tmp_toml"
   [[ "$output" == *'WORKSPACE_ID = "01WORKSPACE000000000000001"'* ]]
-  rm -f "$tmp_state" "$tmp_toml"
 }
 
 @test "init --dry-run prints would-run lines for every wrangler call and leaves wrangler.toml untouched" {
-  tmp_state="/tmp/mostly-bats-state-$$"
-  tmp_toml="/tmp/mostly-bats-toml-$$"
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
   cat > "$tmp_toml" <<'TOML'
 [[d1_databases]]
 database_id = ""
@@ -175,5 +171,19 @@ TOML
   # And the TOML must be unchanged.
   toml_after=$(cat "$tmp_toml")
   [ "$toml_before" = "$toml_after" ]
-  rm -f "$tmp_state" "$tmp_toml"
+}
+
+@test "init dies with a clear error when wrangler d1 create returns no uuid" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = ""
+[vars]
+WORKSPACE_ID = ""
+TOML
+  STUB_WRANGLER_D1_CREATE_BAD=1 STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" \
+    run "$SCRIPT_DIR/deploy-cloudflare.sh" init --admin-handle admin --admin-password pw
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"could not parse database_id"* ]]
 }
