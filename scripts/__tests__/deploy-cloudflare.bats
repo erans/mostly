@@ -102,12 +102,6 @@ TOML
   [[ "$output" == *"unknown init flag"* ]]
 }
 
-@test "destroy --yes-i-really-mean-it exits 0 and prints yes_really=1" {
-  run "$SCRIPT_DIR/deploy-cloudflare.sh" destroy --yes-i-really-mean-it
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"destroy yes_really=1"* ]]
-}
-
 @test "init refuses to run if .cloudflare.env already exists" {
   tmp_state="$BATS_TEST_TMPDIR/state"
   printf 'DATABASE_ID=xyz\n' > "$tmp_state"
@@ -554,4 +548,104 @@ TOML
   run grep 'route = ' "$tmp_toml"
   [[ "$output" == *'pattern = "mostly.example.com/*"'* ]]
   [[ "$output" == *'custom_domain = true'* ]]
+}
+
+@test "destroy without .cloudflare.env exits 1" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  rm -f "$tmp_state"
+  STATE_FILE="$tmp_state" run bash -c "echo '' | $SCRIPT_DIR/deploy-cloudflare.sh destroy --yes-i-really-mean-it"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"state file"* || "$output" == *"not initialized"* ]]
+}
+
+@test "destroy aborts when the confirmation does not match" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=xyz
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = "xyz"
+[vars]
+WORKSPACE_ID = "01WORKSPACE000000000000001"
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run bash -c "echo 'wrong-name' | $SCRIPT_DIR/deploy-cloudflare.sh destroy --yes-i-really-mean-it"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"aborted"* ]]
+  [ -f "$tmp_state" ]
+  run cat "$STUB_LOG_FILE"
+  [[ "$output" != *"wrangler delete"* ]]
+  [[ "$output" != *"wrangler d1 delete"* ]]
+}
+
+@test "destroy with matching confirmation deletes worker, D1, state, and resets wrangler.toml" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=xyz
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = "xyz"
+[vars]
+WORKSPACE_ID = "01WORKSPACE000000000000001"
+TOML
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run bash -c "echo 'mostly' | $SCRIPT_DIR/deploy-cloudflare.sh destroy --yes-i-really-mean-it"
+  [ "$status" -eq 0 ]
+  [ ! -f "$tmp_state" ]
+  run grep 'database_id' "$tmp_toml"
+  [[ "$output" == *'database_id = ""'* ]]
+  run grep 'WORKSPACE_ID' "$tmp_toml"
+  [[ "$output" == *'WORKSPACE_ID = ""'* ]]
+  run cat "$STUB_LOG_FILE"
+  [[ "$output" == *"wrangler delete"* ]]
+  [[ "$output" == *"wrangler d1 delete mostly-db"* ]]
+}
+
+@test "destroy --dry-run prints would-run lines and leaves everything intact" {
+  tmp_state="$BATS_TEST_TMPDIR/state"
+  tmp_toml="$BATS_TEST_TMPDIR/toml"
+  cat > "$tmp_state" <<'STATE'
+DATABASE_ID=xyz
+DATABASE_NAME=mostly-db
+WORKSPACE_ID=01WORKSPACE000000000000001
+WORKSPACE_SLUG=default
+WORKER_NAME=mostly
+WORKER_URL=https://mostly.test.workers.dev
+ADMIN_HANDLE=admin
+DOMAIN=
+STATE
+  cat > "$tmp_toml" <<'TOML'
+[[d1_databases]]
+database_id = "xyz"
+[vars]
+WORKSPACE_ID = "01WORKSPACE000000000000001"
+TOML
+  toml_before=$(cat "$tmp_toml")
+  STATE_FILE="$tmp_state" WRANGLER_TOML="$tmp_toml" run bash -c "echo 'mostly' | $SCRIPT_DIR/deploy-cloudflare.sh destroy --yes-i-really-mean-it --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: wrangler delete"* ]]
+  [[ "$output" == *"would-run: wrangler d1 delete mostly-db"* ]]
+  [[ "$output" == *"would-run: patch_wrangler_toml_field"* ]]
+  [[ "$output" == *"would-remove:"*"$tmp_state"* ]]
+  [ -f "$tmp_state" ]
+  toml_after=$(cat "$tmp_toml")
+  [ "$toml_before" = "$toml_after" ]
+  run cat "$STUB_LOG_FILE"
+  [ "$output" = "" ]
 }

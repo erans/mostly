@@ -398,8 +398,76 @@ cmd_destroy() {
     die "destroy is destructive — re-run with --yes-i-really-mean-it"
   fi
 
-  printf 'destroy yes_really=%s dry_run=%s\n' "$yes_really" "${DRY_RUN:-0}"
-  # Real logic lands in Task 12.
+  log_step "preflight: required commands"
+  require_cmd wrangler
+
+  log_step "preflight: state file"
+  # Same pattern as cmd_update: read_state would die with a generic
+  # "required file not found" message; detect the missing-file case
+  # ourselves so the error contains the actionable "not initialized" hint.
+  if [[ ! -f "$STATE_FILE" ]]; then
+    die "not initialized (state file $STATE_FILE not found) — nothing to destroy"
+  fi
+  read_state "$STATE_FILE"
+  if [[ -z "${WORKER_NAME:-}" || -z "${DATABASE_NAME:-}" ]]; then
+    die "state file $STATE_FILE is missing required fields (WORKER_NAME, DATABASE_NAME)"
+  fi
+
+  cat <<EOF
+
+This will permanently delete:
+  - Worker:    $WORKER_NAME
+  - Database:  $DATABASE_NAME (${DATABASE_ID:-unknown})
+  - State:     $STATE_FILE
+
+Users, tasks, and API keys will be permanently lost.
+
+EOF
+  local confirm=""
+  read -rp "Type the worker name ($WORKER_NAME) to confirm: " confirm
+  if [[ "$confirm" != "$WORKER_NAME" ]]; then
+    echo "aborted."
+    exit 0
+  fi
+
+  log_step "delete worker"
+  # wrangler delete can fail if the worker is already gone; that is
+  # not a reason to leave the D1 database or state file in place.
+  if ! run_cmd wrangler delete; then
+    log_warn "wrangler delete failed (worker may already be gone); continuing"
+  fi
+
+  log_step "delete D1 database"
+  run_cmd wrangler d1 delete "$DATABASE_NAME" --skip-confirmation
+
+  log_step "remove state file"
+  # SAFETY: gate the local rm on is_dry_run (the same predicate run_cmd
+  # uses) so a DRY_RUN=true invocation can never delete the state file.
+  # Task 10 roborev Important #3: any local side-effect that mirrors a
+  # run_cmd call must use is_dry_run, not a literal "1" comparison, or
+  # the three gates will drift.
+  if is_dry_run; then
+    printf 'would-remove: %s\n' "$STATE_FILE" >&2
+  else
+    rm -f "$STATE_FILE"
+  fi
+
+  log_step "reset wrangler.toml placeholders"
+  require_file "$WRANGLER_TOML"
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" database_id ""
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" WORKSPACE_ID ""
+  run_cmd unpatch_wrangler_toml_route "$WRANGLER_TOML"
+
+  log_step "done"
+  cat <<EOF
+
+Mostly destroyed.
+  Worker:    deleted
+  Database:  deleted
+  State:     removed
+
+wrangler.toml has been reset to the committed baseline.
+EOF
 }
 
 main() {
