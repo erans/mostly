@@ -69,7 +69,6 @@ destroy flags:
 USAGE
 }
 
-# shellcheck disable=SC2034  # admin_password is read by Task 9 implementation.
 cmd_init() {
   local domain=""
   local admin_handle=""
@@ -88,6 +87,11 @@ cmd_init() {
       *) die "unknown init flag: $1" ;;
     esac
   done
+
+  # Captured here so the parser tests can pass; consumed by Task 9 when it
+  # threads the admin password into the bootstrap call. The no-op reference
+  # below tells shellcheck the variable is intentionally captured for later.
+  : "$admin_password"
 
   validate_slug "$workspace_slug"
   if [[ -n "$admin_handle" ]]; then
