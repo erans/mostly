@@ -130,3 +130,111 @@ validate_slug() {
     die "invalid slug: $value (must match ^[a-z][a-z0-9-]{0,62}\$)"
   fi
 }
+
+# Patch a single `key = "value"` line in a TOML file in place. Works for
+# both `database_id` and `WORKSPACE_ID` because both have the same
+# `<key> = "<value>"` shape. The patch is idempotent and preserves all
+# other lines exactly.
+#
+# Implementation: uses a temporary file + awk for portability (sed -i
+# differs between GNU and BSD). An empty value is explicitly supported
+# so destroy can reset fields to "".
+patch_wrangler_toml_field() {
+  local path="$1"
+  local key="$2"
+  local value="$3"
+  require_file "$path"
+  local tmp
+  tmp=$(mktemp)
+  awk -v key="$key" -v value="$value" '
+    {
+      if ($0 ~ "^[[:space:]]*"key"[[:space:]]*=") {
+        printf("%s = \"%s\"\n", key, value)
+      } else {
+        print
+      }
+    }
+  ' "$path" > "$tmp"
+  mv "$tmp" "$path"
+}
+
+# Append a `route = { pattern = "<domain>/*", custom_domain = true }` line
+# to wrangler.toml at the end of file. If a route line already exists, it
+# is replaced (so the call is idempotent).
+patch_wrangler_toml_route() {
+  local path="$1"
+  local domain="$2"
+  require_file "$path"
+  # Strip any existing route line first.
+  unpatch_wrangler_toml_route "$path"
+  printf '\nroute = { pattern = "%s/*", custom_domain = true }\n' "$domain" >> "$path"
+}
+
+# Remove any `route = { ... }` line from wrangler.toml. Safe no-op if
+# no such line exists.
+unpatch_wrangler_toml_route() {
+  local path="$1"
+  require_file "$path"
+  local tmp
+  tmp=$(mktemp)
+  grep -v '^route = ' "$path" > "$tmp" || true
+  mv "$tmp" "$path"
+}
+
+# Parse the deployed URL from `wrangler deploy` stdout. Wrangler prints
+# the URL on its own line, indented with two spaces, after lines about
+# Upload and Published.
+parse_deploy_url() {
+  local output="$1"
+  local url
+  url=$(printf '%s\n' "$output" | grep -oE 'https://[a-zA-Z0-9.-]+(\.workers\.dev|[a-zA-Z]{2,})(/[[:alnum:]_./-]*)?' | head -n1) || true
+  if [[ -z "$url" ]]; then
+    die "could not parse deployed URL from wrangler output"
+  fi
+  printf '%s\n' "$url"
+}
+
+# Run a command. If it fails, wait <delay_seconds> and try again once more.
+# If the second attempt also fails, return its non-zero exit code.
+retry_once() {
+  local delay="$1"
+  shift
+  if "$@"; then
+    return 0
+  fi
+  log_warn "command failed, retrying in ${delay}s: $*"
+  sleep "$delay"
+  "$@"
+}
+
+# Run a command, or print "would-run: <cmd>" to stderr and skip execution
+# if DRY_RUN=1 is set in the environment. Use this for fire-and-forget
+# external commands whose stdout is not captured. The would-run line goes
+# to stderr so that callers can still redirect command stdout (e.g.
+# `run_cmd wrangler whoami >/dev/null`) without losing the dry-run trace.
+run_cmd() {
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    local IFS=' '
+    printf 'would-run: %s\n' "$*" >&2
+    return 0
+  fi
+  "$@"
+}
+
+# Run a command and emit its stdout, or print "would-run: <cmd>" to
+# stderr and emit canned stdout if DRY_RUN=1 is set. Use this for
+# external commands whose stdout downstream code parses (e.g.
+# `wrangler d1 create --json`, `wrangler deploy`, the curl calls that
+# return JSON the script needs to thread through). The first argument
+# is the canned stdout; the rest is the command.
+run_cmd_capture() {
+  local canned="$1"
+  shift
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    local IFS=' '
+    printf 'would-run: %s\n' "$*" >&2
+    printf '%s' "$canned"
+    return 0
+  fi
+  "$@"
+}

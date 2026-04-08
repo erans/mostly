@@ -212,3 +212,168 @@ WORKER_URL='https://x.workers.dev'" ]
   [ "$perms" = "600" ]
   rm -f "$tmp"
 }
+
+@test "patch_wrangler_toml_field sets database_id on a blank config" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+[[d1_databases]]
+binding = "DB"
+database_name = "mostly-db"
+database_id = ""
+migrations_dir = "packages/db/migrations"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_field '$tmp' database_id new-id-123"
+  [ "$status" -eq 0 ]
+  run grep "database_id" "$tmp"
+  [[ "$output" == *'database_id = "new-id-123"'* ]]
+  rm -f "$tmp"
+}
+
+@test "patch_wrangler_toml_field replaces an existing database_id" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+[[d1_databases]]
+database_id = "old-id"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_field '$tmp' database_id new-id"
+  [ "$status" -eq 0 ]
+  run grep "database_id" "$tmp"
+  [[ "$output" == *'database_id = "new-id"'* ]]
+  [[ "$output" != *'old-id'* ]]
+  rm -f "$tmp"
+}
+
+@test "patch_wrangler_toml_field sets WORKSPACE_ID on a blank vars block" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+[vars]
+WORKSPACE_ID = ""
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_field '$tmp' WORKSPACE_ID 01WS001"
+  [ "$status" -eq 0 ]
+  run grep "WORKSPACE_ID" "$tmp"
+  [[ "$output" == *'WORKSPACE_ID = "01WS001"'* ]]
+  rm -f "$tmp"
+}
+
+@test "patch_wrangler_toml_field can clear a field back to empty" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+[[d1_databases]]
+database_id = "filled"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_field '$tmp' database_id ''"
+  [ "$status" -eq 0 ]
+  run grep "database_id" "$tmp"
+  [[ "$output" == *'database_id = ""'* ]]
+  rm -f "$tmp"
+}
+
+@test "patch_wrangler_toml_route appends a route block when none exists" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+name = "mostly"
+main = "x"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && patch_wrangler_toml_route '$tmp' mostly.example.com"
+  [ "$status" -eq 0 ]
+  run cat "$tmp"
+  [[ "$output" == *'route = { pattern = "mostly.example.com/*", custom_domain = true }'* ]]
+  rm -f "$tmp"
+}
+
+@test "unpatch_wrangler_toml_route removes the route block" {
+  tmp=$(mktemp)
+  cat > "$tmp" <<'TOML'
+name = "mostly"
+route = { pattern = "mostly.example.com/*", custom_domain = true }
+main = "x"
+TOML
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && unpatch_wrangler_toml_route '$tmp'"
+  [ "$status" -eq 0 ]
+  run cat "$tmp"
+  [[ "$output" != *"route ="* ]]
+  rm -f "$tmp"
+}
+
+@test "parse_deploy_url extracts an https workers.dev URL" {
+  sample=' ⛅️ wrangler 3.85.0
+-------------------
+Total Upload: 100.00 KiB
+Uploaded mostly (1.23 sec)
+Published mostly (0.45 sec)
+  https://mostly.test.workers.dev
+Current Deployment ID: abc'
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && parse_deploy_url '$sample'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "https://mostly.test.workers.dev" ]
+}
+
+@test "parse_deploy_url extracts a custom-domain URL" {
+  sample='Published mostly
+  https://tasks.acme.com
+Deployment ID: xyz'
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && parse_deploy_url '$sample'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "https://tasks.acme.com" ]
+}
+
+@test "parse_deploy_url dies when no URL is present" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && parse_deploy_url 'nothing here'"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"could not parse"* ]]
+}
+
+@test "retry_once returns 0 on first-attempt success" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && retry_once 0 true"
+  [ "$status" -eq 0 ]
+}
+
+@test "retry_once retries after a failure and succeeds on second attempt" {
+  tmp=$(mktemp)
+  echo 0 > "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && retry_once 0 bash -c 'n=\$(cat $tmp); n=\$((n+1)); echo \$n > $tmp; if [ \"\$n\" -lt 2 ]; then exit 1; else exit 0; fi'"
+  [ "$status" -eq 0 ]
+  rm -f "$tmp"
+}
+
+@test "retry_once fails after two failed attempts" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && retry_once 0 false"
+  [ "$status" -ne 0 ]
+}
+
+@test "run_cmd runs the command when DRY_RUN is unset" {
+  tmp="/tmp/run-cmd-real-$$"
+  rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && unset DRY_RUN && run_cmd touch '$tmp'"
+  [ "$status" -eq 0 ]
+  [ -f "$tmp" ]
+  rm -f "$tmp"
+}
+
+@test "run_cmd prints would-run line and skips execution when DRY_RUN=1" {
+  tmp="/tmp/run-cmd-dry-$$"
+  rm -f "$tmp"
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && DRY_RUN=1 run_cmd touch '$tmp' 2>&1"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: touch $tmp"* ]]
+  [ ! -f "$tmp" ]
+}
+
+@test "run_cmd_capture forwards stdout when DRY_RUN is unset" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && unset DRY_RUN && run_cmd_capture 'fallback' echo hello"
+  [ "$status" -eq 0 ]
+  [ "$output" = "hello" ]
+}
+
+@test "run_cmd_capture emits canned stdout when DRY_RUN=1" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && DRY_RUN=1 run_cmd_capture 'canned-value' echo not-actually-run 2>/dev/null"
+  [ "$status" -eq 0 ]
+  [ "$output" = "canned-value" ]
+}
+
+@test "run_cmd_capture writes would-run line to stderr when DRY_RUN=1" {
+  run bash -c "source '$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh' && DRY_RUN=1 run_cmd_capture 'canned' echo skip-me 2>&1 >/dev/null"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would-run: echo skip-me"* ]]
+}
