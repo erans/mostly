@@ -170,6 +170,16 @@ pnpm test:e2e
 pnpm build
 ```
 
+## Deploying to Cloudflare
+
+For a fresh install or to push updates, run:
+
+    ./scripts/deploy-cloudflare.sh init      # first time
+    ./scripts/deploy-cloudflare.sh update    # subsequent deploys
+
+See [`docs/cloudflare-deployment.md`](docs/cloudflare-deployment.md) for
+details, custom domain setup, and manual provisioning instructions.
+
 ## License
 
 Apache License 2.0 - see [LICENSE](LICENSE) for details.
