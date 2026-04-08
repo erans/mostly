@@ -22,6 +22,24 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1091  # Path is dynamic ($SCRIPT_DIR); resolved at runtime.
 source "$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh"
 
+# Locations (these can be overridden by env for tests).
+# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+STATE_FILE="${STATE_FILE:-$REPO_ROOT/.cloudflare.env}"
+# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+WRANGLER_TOML="${WRANGLER_TOML:-$REPO_ROOT/wrangler.toml}"
+# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+WORKSPACE_ID_DEFAULT="01WORKSPACE000000000000001"
+# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+DATABASE_NAME_DEFAULT="mostly-db"
+# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+WORKER_NAME_DEFAULT="mostly"
+
+trap 'on_error $LINENO' ERR
+on_error() {
+  local line="$1"
+  printf '[ERROR] failed at %s (line %s): %s\n' "${CURRENT_STEP:-(unknown)}" "$line" "$0" >&2
+}
+
 usage() {
   cat <<'USAGE'
 Usage: scripts/deploy-cloudflare.sh <subcommand> [flags]
@@ -34,8 +52,87 @@ Subcommands:
                        touch users, tokens, or workspace data.
   destroy              Tear down the deployment. Requires --yes-i-really-mean-it.
 
-Run `scripts/deploy-cloudflare.sh <subcommand> --help` for subcommand flags.
+init flags:
+  --domain <host>          Install with a custom domain (adds a route block).
+  --admin-handle <handle>  Admin user handle (prompted if omitted).
+  --admin-password <pw>    Admin password (prompted if omitted).
+  --workspace-slug <slug>  Workspace slug (default: default).
+  --dry-run                Print intended actions without running them.
+
+update flags:
+  --dry-run                Print intended actions without running them.
+
+destroy flags:
+  --yes-i-really-mean-it   Required. Without it, destroy prints what would be
+                           deleted and exits non-zero.
+  --dry-run                Print intended actions without running them.
 USAGE
+}
+
+# shellcheck disable=SC2034  # admin_password is read by Task 9 implementation.
+cmd_init() {
+  local domain=""
+  local admin_handle=""
+  local admin_password=""
+  local workspace_slug="default"
+  local dry_run=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --domain)         domain="$2"; shift 2 ;;
+      --admin-handle)   admin_handle="$2"; shift 2 ;;
+      --admin-password) admin_password="$2"; shift 2 ;;
+      --workspace-slug) workspace_slug="$2"; shift 2 ;;
+      --dry-run)        dry_run=1; export DRY_RUN=1; shift ;;
+      -h|--help)        usage; exit 0 ;;
+      *) die "unknown init flag: $1" ;;
+    esac
+  done
+
+  validate_slug "$workspace_slug"
+  if [[ -n "$admin_handle" ]]; then
+    validate_slug "$admin_handle"
+  fi
+
+  printf 'init admin-handle=%s domain=%s workspace-slug=%s dry_run=%s\n' \
+    "${admin_handle:-<prompt>}" "${domain:-<none>}" "$workspace_slug" "$dry_run"
+
+  # Real logic lands in Task 9 and Task 10. For now this stub is enough to
+  # satisfy the argument-parsing tests.
+}
+
+cmd_update() {
+  local dry_run=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) dry_run=1; export DRY_RUN=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "unknown update flag: $1" ;;
+    esac
+  done
+
+  printf 'update dry_run=%s\n' "$dry_run"
+  # Real logic lands in Task 11.
+}
+
+cmd_destroy() {
+  local yes_really=0
+  local dry_run=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes-i-really-mean-it) yes_really=1; shift ;;
+      --dry-run) dry_run=1; export DRY_RUN=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "unknown destroy flag: $1" ;;
+    esac
+  done
+
+  if [[ $yes_really -ne 1 ]]; then
+    die "destroy is destructive — re-run with --yes-i-really-mean-it"
+  fi
+
+  printf 'destroy yes_really=%s dry_run=%s\n' "$yes_really" "$dry_run"
+  # Real logic lands in Task 12.
 }
 
 main() {
@@ -48,9 +145,9 @@ main() {
   shift
 
   case "$subcommand" in
-    init)    die "init not yet implemented" ;;
-    update)  die "update not yet implemented" ;;
-    destroy) die "destroy not yet implemented" ;;
+    init)      cmd_init "$@" ;;
+    update)    cmd_update "$@" ;;
+    destroy)   cmd_destroy "$@" ;;
     -h|--help) usage; exit 0 ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
