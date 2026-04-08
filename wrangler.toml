@@ -11,3 +11,9 @@ migrations_dir = "packages/db/migrations"
 
 [vars]
 WORKSPACE_ID = ""
+
+[assets]
+directory = "packages/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/v0/*"]
