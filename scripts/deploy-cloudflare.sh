@@ -108,11 +108,80 @@ cmd_init() {
     validate_slug "$admin_handle"
   fi
 
-  printf 'init admin-handle=%s domain=%s workspace-slug=%s dry_run=%s\n' \
-    "${admin_handle:-<prompt>}" "${domain:-<none>}" "$workspace_slug" "${DRY_RUN:-0}"
+  # Preflight
+  log_step "preflight: required commands"
+  require_cmd wrangler
+  require_cmd pnpm
+  require_cmd curl
+  require_cmd openssl
+  require_cmd jq
 
-  # Real logic lands in Task 9 and Task 10. For now this stub is enough to
-  # satisfy the argument-parsing tests.
+  log_step "preflight: repo root"
+  require_file "$WRANGLER_TOML"
+  require_file "$REPO_ROOT/packages/server/package.json"
+  require_file "$REPO_ROOT/packages/web/package.json"
+
+  log_step "preflight: wrangler authentication"
+  run_cmd wrangler whoami >/dev/null
+
+  log_step "preflight: state file must not exist"
+  if [[ -f "$STATE_FILE" ]]; then
+    die "already initialized (found $STATE_FILE) — use update or destroy instead"
+  fi
+
+  # Prompt for missing credentials
+  if [[ -z "$admin_handle" ]]; then
+    read -rp "admin handle: " admin_handle
+    validate_slug "$admin_handle"
+  fi
+  if [[ -z "$admin_password" ]]; then
+    local confirm=""
+    read -rsp "admin password: " admin_password
+    echo
+    read -rsp "confirm password: " confirm
+    echo
+    if [[ "$admin_password" != "$confirm" ]]; then
+      die "passwords do not match"
+    fi
+  fi
+
+  log_step "create D1 database"
+  local create_json database_id
+  # In dry-run mode, run_cmd_capture emits this canned JSON so the rest of
+  # the script has a database_id to thread through. In real (or stub) mode
+  # the canned value is ignored and wrangler's actual stdout is captured.
+  create_json=$(run_cmd_capture \
+    '{"uuid":"00000000-0000-0000-0000-000000000001","name":"mostly-db"}' \
+    wrangler d1 create "$DATABASE_NAME_DEFAULT" --json)
+  database_id=$(printf '%s' "$create_json" | jq -r '.uuid')
+  if [[ -z "$database_id" || "$database_id" == "null" ]]; then
+    die "could not parse database_id from wrangler output: $create_json"
+  fi
+
+  log_step "patch wrangler.toml: database_id"
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" database_id "$database_id"
+
+  log_step "apply D1 migrations"
+  run_cmd wrangler d1 migrations apply "$DATABASE_NAME_DEFAULT" --remote
+
+  log_step "seed workspace row"
+  local workspace_id="$WORKSPACE_ID_DEFAULT"
+  # validate_slug has already enforced [a-z][a-z0-9-]{0,62} on workspace_slug,
+  # so the INSERT cannot break out of the quoted string.
+  run_cmd wrangler d1 execute "$DATABASE_NAME_DEFAULT" --remote --command \
+    "INSERT OR IGNORE INTO workspace (id, slug, name, created_at, updated_at) VALUES ('$workspace_id', '$workspace_slug', 'Default Workspace', datetime('now'), datetime('now'));"
+
+  log_step "patch wrangler.toml: WORKSPACE_ID"
+  run_cmd patch_wrangler_toml_field "$WRANGLER_TOML" WORKSPACE_ID "$workspace_id"
+
+  if [[ -n "$domain" ]]; then
+    log_step "patch wrangler.toml: route for $domain"
+    run_cmd patch_wrangler_toml_route "$WRANGLER_TOML" "$domain"
+  fi
+
+  # Task 10 continues from here (build, deploy, bootstrap, state file, summary).
+  printf 'init preflight+provision complete. database_id=%s workspace_id=%s dry_run=%s\n' \
+    "$database_id" "$workspace_id" "${DRY_RUN:-0}"
 }
 
 cmd_update() {
