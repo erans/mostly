@@ -47,6 +47,7 @@ Current Deployment ID: 00000000-0000-0000-0000-0000000000aa
 OUT
     ;;
   delete)
+    # wrangler delete (worker, not d1)
     echo "✅ Worker mostly deleted"
     ;;
   *)

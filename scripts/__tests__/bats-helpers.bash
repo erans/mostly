@@ -11,10 +11,11 @@ export SCRIPT_DIR REPO_ROOT
 
 setup_stubs() {
   STUBS_DIR="$SCRIPT_DIR/stubs"
-  STUBS_LOG_DIR="$(mktemp -d)"
+  STUBS_LOG_DIR="$(mktemp -d)" || { echo "mktemp failed" >&2; return 1; }
   export STUBS_DIR STUBS_LOG_DIR
   export STUB_LOG_FILE="$STUBS_LOG_DIR/invocations.log"
   : > "$STUB_LOG_FILE"
+  _ORIG_PATH="$PATH"
   export PATH="$STUBS_DIR:$PATH"
 }
 
@@ -22,6 +23,11 @@ teardown_stubs() {
   if [[ -n "${STUBS_LOG_DIR:-}" && -d "$STUBS_LOG_DIR" ]]; then
     rm -rf "$STUBS_LOG_DIR"
   fi
+  if [[ -n "${_ORIG_PATH:-}" ]]; then
+    PATH="$_ORIG_PATH"
+    unset _ORIG_PATH
+  fi
+  unset STUBS_DIR STUBS_LOG_DIR STUB_LOG_FILE
 }
 
 # Return the nth recorded stub invocation line (1-indexed).
@@ -32,5 +38,5 @@ stub_invocation() {
 
 # Total number of recorded stub invocations.
 stub_invocation_count() {
-  wc -l < "$STUB_LOG_FILE" | tr -d ' '
+  grep -c '' "$STUB_LOG_FILE"
 }

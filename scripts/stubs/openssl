@@ -12,7 +12,7 @@ case "$1" in
     ;;
   dgst)
     # openssl dgst -sha256 -hex → "(stdin)= <hex>"
-    echo "(stdin)= fabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabfabe"
+    echo "(stdin)= fabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfafabfabfa"
     ;;
   *)
     echo "stub openssl: unknown command $*" >&2

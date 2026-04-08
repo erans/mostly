@@ -8,10 +8,18 @@ fi
 
 # Last positional arg is the URL for the calls we care about.
 url=""
+prev=""
 for arg in "$@"; do
+  case "$prev" in
+    -H|--header|--resolve|--url|-e|--referer)
+      prev="$arg"
+      continue
+      ;;
+  esac
   case "$arg" in
     http://*|https://*) url="$arg" ;;
   esac
+  prev="$arg"
 done
 
 # Write a fake Set-Cookie header if -c <file> is given (cookie jar), so the

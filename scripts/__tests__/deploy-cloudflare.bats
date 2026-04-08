@@ -27,3 +27,9 @@ teardown() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown subcommand: nope"* ]]
 }
+
+@test "deploy-cloudflare.sh init exits 1 with not-implemented message" {
+  run "$SCRIPT_DIR/deploy-cloudflare.sh" init
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"init not yet implemented"* ]]
+}

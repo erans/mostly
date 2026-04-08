@@ -27,3 +27,10 @@ IFS=$'\n\t'
 # Populated by log_step, consumed by the trap in the entry-point script.
 # shellcheck disable=SC2034  # Used by the trap in deploy-cloudflare.sh (Task 5).
 CURRENT_STEP="(not started)"
+
+# Minimal die so the skeleton dispatch table works before Task 5 lands the full
+# implementation. Task 5 replaces this with a richer version.
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
