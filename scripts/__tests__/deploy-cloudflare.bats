@@ -62,3 +62,23 @@ teardown() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"--yes-i-really-mean-it"* ]]
 }
+
+@test "init with --domain but no value exits 1 with a clear error" {
+  run "$SCRIPT_DIR/deploy-cloudflare.sh" init --domain
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--domain"* ]]
+  [[ "$output" == *"requires a value"* ]]
+  [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "init rejects an unknown flag" {
+  run "$SCRIPT_DIR/deploy-cloudflare.sh" init --not-a-flag
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown init flag"* ]]
+}
+
+@test "destroy --yes-i-really-mean-it exits 0 and prints yes_really=1" {
+  run "$SCRIPT_DIR/deploy-cloudflare.sh" destroy --yes-i-really-mean-it
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"destroy yes_really=1"* ]]
+}

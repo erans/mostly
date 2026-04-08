@@ -15,7 +15,7 @@ IFS=$'\n\t'
 # Resolve the script's own directory so we can source the helper library
 # regardless of the caller's cwd.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC2034  # Used by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Used by cmd_init / cmd_update / cmd_destroy.
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # shellcheck source=lib/deploy-cloudflare-utils.sh
@@ -23,21 +23,21 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/deploy-cloudflare-utils.sh"
 
 # Locations (these can be overridden by env for tests).
-# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Consumed by cmd_init / cmd_update / cmd_destroy.
 STATE_FILE="${STATE_FILE:-$REPO_ROOT/.cloudflare.env}"
-# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Consumed by cmd_init / cmd_update / cmd_destroy.
 WRANGLER_TOML="${WRANGLER_TOML:-$REPO_ROOT/wrangler.toml}"
-# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Consumed by cmd_init / cmd_update / cmd_destroy.
 WORKSPACE_ID_DEFAULT="01WORKSPACE000000000000001"
-# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Consumed by cmd_init / cmd_update / cmd_destroy.
 DATABASE_NAME_DEFAULT="mostly-db"
-# shellcheck disable=SC2034  # Consumed by subcommand implementations in Tasks 9-12.
+# shellcheck disable=SC2034  # Consumed by cmd_init / cmd_update / cmd_destroy.
 WORKER_NAME_DEFAULT="mostly"
 
 trap 'on_error $LINENO' ERR
 on_error() {
   local line="$1"
-  printf '[ERROR] failed at %s (line %s): %s\n' "${CURRENT_STEP:-(unknown)}" "$line" "$0" >&2
+  printf '[ERROR] %s: failed at step "%s" (line %s)\n' "$0" "${CURRENT_STEP:-(unknown)}" "$line" >&2
 }
 
 usage() {
@@ -69,20 +69,30 @@ destroy flags:
 USAGE
 }
 
+# Guard a flag that consumes a value: dies cleanly when the value is missing.
+# Usage: need_value <flag> <arg-count>
+#   need_value "$1" "$#"
+need_value() {
+  local flag="$1"
+  local remaining="$2"
+  if [[ "$remaining" -lt 2 ]]; then
+    die "flag $flag requires a value"
+  fi
+}
+
 cmd_init() {
   local domain=""
   local admin_handle=""
   local admin_password=""
   local workspace_slug="default"
-  local dry_run=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --domain)         domain="$2"; shift 2 ;;
-      --admin-handle)   admin_handle="$2"; shift 2 ;;
-      --admin-password) admin_password="$2"; shift 2 ;;
-      --workspace-slug) workspace_slug="$2"; shift 2 ;;
-      --dry-run)        dry_run=1; export DRY_RUN=1; shift ;;
+      --domain)         need_value "$1" "$#"; domain="$2"; shift 2 ;;
+      --admin-handle)   need_value "$1" "$#"; admin_handle="$2"; shift 2 ;;
+      --admin-password) need_value "$1" "$#"; admin_password="$2"; shift 2 ;;
+      --workspace-slug) need_value "$1" "$#"; workspace_slug="$2"; shift 2 ;;
+      --dry-run)        export DRY_RUN=1; shift ;;
       -h|--help)        usage; exit 0 ;;
       *) die "unknown init flag: $1" ;;
     esac
@@ -99,33 +109,31 @@ cmd_init() {
   fi
 
   printf 'init admin-handle=%s domain=%s workspace-slug=%s dry_run=%s\n' \
-    "${admin_handle:-<prompt>}" "${domain:-<none>}" "$workspace_slug" "$dry_run"
+    "${admin_handle:-<prompt>}" "${domain:-<none>}" "$workspace_slug" "${DRY_RUN:-0}"
 
   # Real logic lands in Task 9 and Task 10. For now this stub is enough to
   # satisfy the argument-parsing tests.
 }
 
 cmd_update() {
-  local dry_run=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --dry-run) dry_run=1; export DRY_RUN=1; shift ;;
+      --dry-run) export DRY_RUN=1; shift ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown update flag: $1" ;;
     esac
   done
 
-  printf 'update dry_run=%s\n' "$dry_run"
+  printf 'update dry_run=%s\n' "${DRY_RUN:-0}"
   # Real logic lands in Task 11.
 }
 
 cmd_destroy() {
   local yes_really=0
-  local dry_run=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --yes-i-really-mean-it) yes_really=1; shift ;;
-      --dry-run) dry_run=1; export DRY_RUN=1; shift ;;
+      --dry-run) export DRY_RUN=1; shift ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown destroy flag: $1" ;;
     esac
@@ -135,13 +143,13 @@ cmd_destroy() {
     die "destroy is destructive — re-run with --yes-i-really-mean-it"
   fi
 
-  printf 'destroy yes_really=%s dry_run=%s\n' "$yes_really" "$dry_run"
+  printf 'destroy yes_really=%s dry_run=%s\n' "$yes_really" "${DRY_RUN:-0}"
   # Real logic lands in Task 12.
 }
 
 main() {
   if [[ $# -eq 0 ]]; then
-    usage
+    usage >&2
     exit 1
   fi
 
@@ -155,7 +163,7 @@ main() {
     -h|--help) usage; exit 0 ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
-      usage
+      usage >&2
       exit 1
       ;;
   esac
