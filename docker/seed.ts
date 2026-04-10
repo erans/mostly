@@ -75,38 +75,41 @@ async function seed() {
     console.log(`  Project already exists: ${project.key}`);
   }
 
-  // 3. Get or create sample tasks, then apply expected transitions
+  // 3. Seed demo tasks (only for tasks that don't already exist by title)
+  const existingTasks = await repos.tasks.list(workspace.id, { project_id: project.id });
+  const existingByTitle = new Map(existingTasks.items.map(t => [t.title, t]));
+
   const taskSpecs = [
-    { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.', expectedKey: 'DEMO-1' },
-    { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', expectedKey: 'DEMO-2', targetStatus: 'in_progress' as const },
-    { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', expectedKey: 'DEMO-3', targetStatus: 'closed' as const, resolution: 'completed' as const },
-    { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.', expectedKey: 'DEMO-4' },
+    { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
+    { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', targetStatus: 'in_progress' as const },
+    { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', targetStatus: 'closed' as const, resolution: 'completed' as const },
+    { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
   ];
 
   for (const spec of taskSpecs) {
-    let task = await repos.tasks.findByKey(workspace.id, spec.expectedKey);
-    if (!task) {
-      task = await taskService.create(workspace.id, {
-        type: spec.type,
-        title: spec.title,
-        description: spec.description,
-        project_id: project.id,
-        assignee_id: admin.id,
-      }, admin.id);
-      console.log(`  Created task: ${task.key} — ${task.title}`);
-    } else {
-      console.log(`  Task already exists: ${task.key}`);
+    if (existingByTitle.has(spec.title)) {
+      console.log(`  Task already exists: ${spec.title}`);
+      continue;
     }
 
-    // Apply transitions if task is not yet in the target status
-    if (spec.targetStatus === 'in_progress' && task.status === 'open') {
+    const task = await taskService.create(workspace.id, {
+      type: spec.type,
+      title: spec.title,
+      description: spec.description,
+      project_id: project.id,
+      assignee_id: admin.id,
+    }, admin.id);
+    console.log(`  Created task: ${task.key} — ${task.title}`);
+
+    // Apply transitions only for freshly created tasks
+    if (spec.targetStatus === 'in_progress') {
       await taskService.acquireClaim(task.id, admin.id, null, task.version);
       const claimed = await repos.tasks.findById(task.id);
       if (claimed) {
         await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
       }
       console.log(`  Moved ${task.key} to in_progress`);
-    } else if (spec.targetStatus === 'closed' && task.status !== 'closed') {
+    } else if (spec.targetStatus === 'closed') {
       await taskService.transition(task.id, 'closed', spec.resolution ?? null, task.version, admin.id);
       console.log(`  Closed ${task.key}`);
     }
