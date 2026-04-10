@@ -88,7 +88,7 @@ async function seed() {
   }
 
   // 4. Transition one task to in_progress (via claimed first)
-  const allTasks = await repos.tasks.list(workspace.id, { limit: 10, offset: 0 });
+  const allTasks = await repos.tasks.list(workspace.id, {}, undefined, 10);
   if (allTasks.items.length >= 2) {
     const taskToClaim = allTasks.items[1]; // the bug
     await taskService.acquireClaim(taskToClaim.id, admin.id, null, taskToClaim.version);
