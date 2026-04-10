@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isSpaFallbackPath } from '../src/serve.js';
+import { isSpaFallbackPath } from '../src/spa-fallback.js';
 
 describe('isSpaFallbackPath', () => {
   it('returns true for GET / (root)', () => {
