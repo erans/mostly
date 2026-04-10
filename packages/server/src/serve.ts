@@ -165,7 +165,11 @@ async function main() {
   // Serve pre-built web UI from public/ if it exists (Docker builds copy it there)
   const publicDir = join(__dirname, '..', 'public');
   if (existsSync(publicDir)) {
-    app.use('*', serveStatic({ root: publicDir }));
+    // Only serve static files for GET/HEAD requests
+    app.use('*', async (c, next) => {
+      if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return next();
+      return serveStatic({ root: publicDir })(c, next);
+    });
     // SPA fallback: non-API GET/HEAD requests that didn't match a static file get index.html
     app.use('*', async (c, next) => {
       if (!isSpaFallbackPath(c.req.method, c.req.path)) {
