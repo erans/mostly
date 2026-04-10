@@ -1,0 +1,22 @@
+services:
+  mostly:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      MOSTLY_DB_PATH: /data/mostly.db
+      MOSTLY_PORT: "6080"
+      MOSTLY_SEED_DEMO: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    ports:
+      - "6080:6080"
+    volumes:
+      - mostly-data:/data
+
+volumes:
+  mostly-data:
