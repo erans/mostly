@@ -43,4 +43,10 @@ describe('shouldFallThroughToAssets', () => {
     const url = new URL('https://example.com/v0xxx');
     expect(shouldFallThroughToAssets(response, url)).toBe(true);
   });
+
+  it('returns false for a 404 on /v0 exact path', () => {
+    const response = new Response(null, { status: 404 });
+    const url = new URL('https://example.com/v0');
+    expect(shouldFallThroughToAssets(response, url)).toBe(false);
+  });
 });
