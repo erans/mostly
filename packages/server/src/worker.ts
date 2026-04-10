@@ -1,6 +1,7 @@
 import { createD1Db, createRepositories, createD1TransactionManager } from '@mostly/db';
 import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
 import { createApp } from './app.js';
+import { isSpaFallbackPath } from './spa-fallback.js';
 
 interface Env {
   DB: unknown;
@@ -17,8 +18,8 @@ type D1Arg = Parameters<typeof createD1Db>[0];
  * worker receives a non-API request anyway (e.g., if someone removes the
  * glob or the runtime evaluates it inconsistently).
  */
-export function shouldFallThroughToAssets(response: Response, url: URL): boolean {
-  return response.status === 404 && url.pathname !== '/v0' && !url.pathname.startsWith('/v0/');
+export function shouldFallThroughToAssets(response: Response, request: Request, url: URL): boolean {
+  return response.status === 404 && isSpaFallbackPath(request.method, url.pathname);
 }
 
 export default {
@@ -43,7 +44,7 @@ export default {
     });
 
     const response = await app.fetch(request, env);
-    if (shouldFallThroughToAssets(response, new URL(request.url))) {
+    if (shouldFallThroughToAssets(response, request, new URL(request.url))) {
       return env.ASSETS.fetch(request);
     }
     return response;

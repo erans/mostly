@@ -71,40 +71,37 @@ async function seed() {
   console.log(`  Created project: ${project.key}`);
 
   // 3. Create sample tasks
-  const tasks = [
+  const taskInputs = [
     { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
     { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.' },
     { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.' },
     { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
   ];
 
-  for (const input of tasks) {
+  const createdTasks = [];
+  for (const input of taskInputs) {
     const task = await taskService.create(workspace.id, {
       ...input,
       project_id: project.id,
       assignee_id: admin.id,
     }, admin.id);
+    createdTasks.push(task);
     console.log(`  Created task: ${task.key} — ${task.title}`);
   }
 
-  // 4. Transition one task to in_progress (via claimed first)
-  const allTasks = await repos.tasks.list(workspace.id, {}, undefined, 10);
-  if (allTasks.items.length >= 2) {
-    const taskToClaim = allTasks.items[1]; // the bug
-    await taskService.acquireClaim(taskToClaim.id, admin.id, null, taskToClaim.version);
-    const claimed = await repos.tasks.findById(taskToClaim.id);
-    if (claimed) {
-      await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
-    }
-    console.log(`  Moved ${taskToClaim.key} to in_progress`);
+  // 4. Transition the bug task to in_progress (via claimed first)
+  const bugTask = createdTasks[1];
+  await taskService.acquireClaim(bugTask.id, admin.id, null, bugTask.version);
+  const claimedBug = await repos.tasks.findById(bugTask.id);
+  if (claimedBug) {
+    await taskService.transition(claimedBug.id, 'in_progress', null, claimedBug.version, admin.id);
   }
+  console.log(`  Moved ${bugTask.key} to in_progress`);
 
-  // 5. Close one task
-  if (allTasks.items.length >= 3) {
-    const taskToClose = allTasks.items[2]; // the chore
-    await taskService.transition(taskToClose.id, 'closed', 'completed', taskToClose.version, admin.id);
-    console.log(`  Closed ${taskToClose.key}`);
-  }
+  // 5. Close the chore task
+  const choreTask = createdTasks[2];
+  await taskService.transition(choreTask.id, 'closed', 'completed', choreTask.version, admin.id);
+  console.log(`  Closed ${choreTask.key}`);
 
   console.log('Demo data seeded successfully!');
 }
