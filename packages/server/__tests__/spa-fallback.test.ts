@@ -43,6 +43,12 @@ describe('isSpaFallbackPath', () => {
     expect(isSpaFallbackPath('GET', '/robots.txt')).toBe(false);
     expect(isSpaFallbackPath('GET', '/assets/app.js')).toBe(false);
     expect(isSpaFallbackPath('GET', '/assets/style.css')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/page.html')).toBe(false);
+  });
+
+  it('returns false for static asset extensions regardless of case', () => {
+    expect(isSpaFallbackPath('GET', '/favicon.ICO')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/assets/App.JS')).toBe(false);
   });
 
   it('returns true for dotted SPA routes (not known asset extensions)', () => {
