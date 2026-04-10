@@ -1,7 +1,14 @@
 const STATIC_ASSET_EXTENSIONS = new Set([
-  '.js', '.css', '.map', '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg',
-  '.woff', '.woff2', '.ttf', '.eot', '.json', '.txt', '.xml', '.webp',
-  '.webmanifest', '.html', '.htm',
+  '.js', '.mjs', '.cjs', '.css', '.map',
+  '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif',
+  '.woff', '.woff2', '.ttf', '.eot',
+  '.json', '.txt', '.xml', '.csv',
+  '.html', '.htm',
+  '.webmanifest', '.pdf', '.wasm', '.gz', '.br', '.zst',
+  '.mp3', '.mp4', '.webm', '.ogg',
+  '.ts', '.tsx', '.jsx', '.vue', '.svelte',
+  '.yaml', '.yml', '.toml',
+  '.zip', '.tar', '.tgz',
 ]);
 
 /** Returns true when a request should receive the SPA index.html fallback. */

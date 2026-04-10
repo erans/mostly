@@ -44,6 +44,10 @@ describe('isSpaFallbackPath', () => {
     expect(isSpaFallbackPath('GET', '/assets/app.js')).toBe(false);
     expect(isSpaFallbackPath('GET', '/assets/style.css')).toBe(false);
     expect(isSpaFallbackPath('GET', '/page.html')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/worker.mjs')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/runtime.wasm')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/photo.avif')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/doc.pdf')).toBe(false);
   });
 
   it('returns false for static asset extensions regardless of case', () => {

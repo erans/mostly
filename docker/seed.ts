@@ -10,6 +10,15 @@ const __dirname = dirname(__filename);
 
 const DB_PATH = process.env.MOSTLY_DB_PATH ?? '/data/mostly.db';
 
+// Deterministic IDs for seeded entities — survives restarts, avoids
+// title-based matching and pagination edge cases.
+const SEED_IDS = {
+  task1: 'tsk_seed_demo_01',
+  task2: 'tsk_seed_demo_02',
+  task3: 'tsk_seed_demo_03',
+  task4: 'tsk_seed_demo_04',
+};
+
 async function seed() {
   // Ensure DB directory exists
   const dbDir = dirname(DB_PATH);
@@ -75,41 +84,47 @@ async function seed() {
     console.log(`  Project already exists: ${project.key}`);
   }
 
-  // 3. Seed demo tasks — match existing ones by title within the DEMO project.
-  //    Title collisions with user-created tasks in this project are unlikely
-  //    given the specificity of these demo titles.
-  const existingTasks = await repos.tasks.list(workspace.id, { project_id: project.id });
-  const existingByTitle = new Map(existingTasks.items.map(t => [t.title, t]));
-
+  // 3. Seed demo tasks using deterministic IDs
   const taskSpecs = [
-    { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
-    { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', targetStatus: 'in_progress' as const },
-    { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', targetStatus: 'closed' as const, resolution: 'completed' as const },
-    { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
+    { id: SEED_IDS.task1, key: 'DEMO-1', type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
+    { id: SEED_IDS.task2, key: 'DEMO-2', type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', targetStatus: 'in_progress' as const },
+    { id: SEED_IDS.task3, key: 'DEMO-3', type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', targetStatus: 'closed' as const, resolution: 'completed' as const },
+    { id: SEED_IDS.task4, key: 'DEMO-4', type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
   ];
 
   for (const spec of taskSpecs) {
-    const existing = existingByTitle.get(spec.title);
+    let task = await repos.tasks.findById(spec.id);
 
-    let task;
-    if (existing) {
-      task = existing;
-      console.log(`  Task already exists: ${task.key} — ${task.title}`);
-    } else {
-      task = await taskService.create(workspace.id, {
+    if (!task) {
+      const now = new Date().toISOString();
+      task = await repos.tasks.create({
+        id: spec.id,
+        workspace_id: workspace.id,
+        project_id: project.id,
+        key: spec.key,
         type: spec.type,
         title: spec.title,
         description: spec.description,
-        project_id: project.id,
+        status: 'open',
+        resolution: null,
         assignee_id: admin.id,
-      }, admin.id);
+        claimed_by_id: null,
+        claim_expires_at: null,
+        version: 1,
+        created_by_id: admin.id,
+        updated_by_id: admin.id,
+        resolved_at: null,
+        created_at: now,
+        updated_at: now,
+      });
       console.log(`  Created task: ${task.key} — ${task.title}`);
+    } else {
+      console.log(`  Task already exists: ${task.key} — ${task.title}`);
     }
 
     // Apply transitions for tasks still in 'open' state (covers both fresh
     // creates and partial seeds where the task was created but the transition
-    // failed). Tasks that users have manually moved to other states are left
-    // untouched.
+    // failed). Tasks that users have manually moved are left untouched.
     if (spec.targetStatus && task.status === 'open') {
       if (spec.targetStatus === 'in_progress') {
         await taskService.acquireClaim(task.id, admin.id, null, task.version);
