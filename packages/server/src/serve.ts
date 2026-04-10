@@ -164,9 +164,12 @@ async function main() {
   const publicDir = join(__dirname, '..', 'public');
   if (existsSync(publicDir)) {
     app.use('*', serveStatic({ root: publicDir }));
-    // SPA fallback: non-API paths that didn't match a static file get index.html
+    // SPA fallback: non-API GET/HEAD requests that didn't match a static file get index.html
     app.use('*', async (c, next) => {
-      if (c.req.path.startsWith('/v0/') || c.req.path === '/healthz') {
+      if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+        return next();
+      }
+      if (c.req.path === '/v0' || c.req.path.startsWith('/v0/') || c.req.path === '/healthz') {
         return next();
       }
       return serveStatic({ root: publicDir, path: 'index.html' })(c, next);
