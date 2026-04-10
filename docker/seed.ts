@@ -45,22 +45,28 @@ async function seed() {
   const projectService = new ProjectService(repos.projects);
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
 
-  // Check if already seeded
-  const humans = await repos.principals.listHumans(workspace.id);
-  if (humans.length > 0) {
+  // Check if already seeded by looking for the demo project specifically
+  const existingDemo = await repos.projects.findByKey(workspace.id, 'DEMO');
+  if (existingDemo) {
     console.log('Demo data already exists, skipping seed.');
     return;
   }
 
   console.log('Seeding demo data...');
 
-  // 1. Register admin user (first user is automatically admin)
-  const { principal: admin } = await authService.register(workspace.id, {
-    handle: 'admin',
-    password: 'admin',
-    display_name: 'Admin',
-  });
-  console.log(`  Created admin user: ${admin.handle}`);
+  // 1. Get or create admin user (first user is automatically admin)
+  let admin = await repos.principals.findByHandle(workspace.id, 'admin');
+  if (!admin) {
+    const result = await authService.register(workspace.id, {
+      handle: 'admin',
+      password: 'admin',
+      display_name: 'Admin',
+    });
+    admin = result.principal;
+    console.log(`  Created admin user: ${admin.handle}`);
+  } else {
+    console.log(`  Admin user already exists: ${admin.handle}`);
+  }
 
   // 2. Create demo project
   const project = await projectService.create(workspace.id, {
