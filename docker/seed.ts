@@ -75,7 +75,9 @@ async function seed() {
     console.log(`  Project already exists: ${project.key}`);
   }
 
-  // 3. Seed demo tasks (only for tasks that don't already exist by title)
+  // 3. Seed demo tasks — match existing ones by title within the DEMO project.
+  //    Title collisions with user-created tasks in this project are unlikely
+  //    given the specificity of these demo titles.
   const existingTasks = await repos.tasks.list(workspace.id, { project_id: project.id });
   const existingByTitle = new Map(existingTasks.items.map(t => [t.title, t]));
 
@@ -87,31 +89,39 @@ async function seed() {
   ];
 
   for (const spec of taskSpecs) {
-    if (existingByTitle.has(spec.title)) {
-      console.log(`  Task already exists: ${spec.title}`);
-      continue;
+    const existing = existingByTitle.get(spec.title);
+
+    let task;
+    if (existing) {
+      task = existing;
+      console.log(`  Task already exists: ${task.key} — ${task.title}`);
+    } else {
+      task = await taskService.create(workspace.id, {
+        type: spec.type,
+        title: spec.title,
+        description: spec.description,
+        project_id: project.id,
+        assignee_id: admin.id,
+      }, admin.id);
+      console.log(`  Created task: ${task.key} — ${task.title}`);
     }
 
-    const task = await taskService.create(workspace.id, {
-      type: spec.type,
-      title: spec.title,
-      description: spec.description,
-      project_id: project.id,
-      assignee_id: admin.id,
-    }, admin.id);
-    console.log(`  Created task: ${task.key} — ${task.title}`);
-
-    // Apply transitions only for freshly created tasks
-    if (spec.targetStatus === 'in_progress') {
-      await taskService.acquireClaim(task.id, admin.id, null, task.version);
-      const claimed = await repos.tasks.findById(task.id);
-      if (claimed) {
-        await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
+    // Apply transitions for tasks still in 'open' state (covers both fresh
+    // creates and partial seeds where the task was created but the transition
+    // failed). Tasks that users have manually moved to other states are left
+    // untouched.
+    if (spec.targetStatus && task.status === 'open') {
+      if (spec.targetStatus === 'in_progress') {
+        await taskService.acquireClaim(task.id, admin.id, null, task.version);
+        const claimed = await repos.tasks.findById(task.id);
+        if (claimed) {
+          await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
+        }
+        console.log(`  Moved ${task.key} to in_progress`);
+      } else if (spec.targetStatus === 'closed') {
+        await taskService.transition(task.id, 'closed', spec.resolution ?? null, task.version, admin.id);
+        console.log(`  Closed ${task.key}`);
       }
-      console.log(`  Moved ${task.key} to in_progress`);
-    } else if (spec.targetStatus === 'closed') {
-      await taskService.transition(task.id, 'closed', spec.resolution ?? null, task.version, admin.id);
-      console.log(`  Closed ${task.key}`);
     }
   }
 
