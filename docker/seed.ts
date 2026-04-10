@@ -10,15 +10,6 @@ const __dirname = dirname(__filename);
 
 const DB_PATH = process.env.MOSTLY_DB_PATH ?? '/data/mostly.db';
 
-// Deterministic IDs for seeded entities — survives restarts, avoids
-// title-based matching and pagination edge cases.
-const SEED_IDS = {
-  task1: 'tsk_seed_demo_01',
-  task2: 'tsk_seed_demo_02',
-  task3: 'tsk_seed_demo_03',
-  task4: 'tsk_seed_demo_04',
-};
-
 async function seed() {
   // Ensure DB directory exists
   const dbDir = dirname(DB_PATH);
@@ -84,60 +75,44 @@ async function seed() {
     console.log(`  Project already exists: ${project.key}`);
   }
 
-  // 3. Seed demo tasks using deterministic IDs
-  const taskSpecs = [
-    { id: SEED_IDS.task1, key: 'DEMO-1', type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
-    { id: SEED_IDS.task2, key: 'DEMO-2', type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', targetStatus: 'in_progress' as const },
-    { id: SEED_IDS.task3, key: 'DEMO-3', type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', targetStatus: 'closed' as const, resolution: 'completed' as const },
-    { id: SEED_IDS.task4, key: 'DEMO-4', type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
-  ];
+  // 3. Seed demo tasks only if the project has no tasks yet.
+  //    Uses taskService.create() to keep key_sequence in sync.
+  //    If the container crashes mid-seed, `docker compose down -v` resets cleanly.
+  const existing = await repos.tasks.list(workspace.id, { project_id: project.id }, undefined, 1);
+  if (existing.items.length > 0) {
+    console.log('  Demo tasks already exist, skipping task seed.');
+  } else {
+    const taskInputs = [
+      { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
+      { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.' },
+      { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.' },
+      { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
+    ];
 
-  for (const spec of taskSpecs) {
-    let task = await repos.tasks.findById(spec.id);
-
-    if (!task) {
-      const now = new Date().toISOString();
-      task = await repos.tasks.create({
-        id: spec.id,
-        workspace_id: workspace.id,
+    const tasks = [];
+    for (const input of taskInputs) {
+      const task = await taskService.create(workspace.id, {
+        ...input,
         project_id: project.id,
-        key: spec.key,
-        type: spec.type,
-        title: spec.title,
-        description: spec.description,
-        status: 'open',
-        resolution: null,
         assignee_id: admin.id,
-        claimed_by_id: null,
-        claim_expires_at: null,
-        version: 1,
-        created_by_id: admin.id,
-        updated_by_id: admin.id,
-        resolved_at: null,
-        created_at: now,
-        updated_at: now,
-      });
+      }, admin.id);
+      tasks.push(task);
       console.log(`  Created task: ${task.key} — ${task.title}`);
-    } else {
-      console.log(`  Task already exists: ${task.key} — ${task.title}`);
     }
 
-    // Apply transitions for tasks still in 'open' state (covers both fresh
-    // creates and partial seeds where the task was created but the transition
-    // failed). Tasks that users have manually moved are left untouched.
-    if (spec.targetStatus && task.status === 'open') {
-      if (spec.targetStatus === 'in_progress') {
-        await taskService.acquireClaim(task.id, admin.id, null, task.version);
-        const claimed = await repos.tasks.findById(task.id);
-        if (claimed) {
-          await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
-        }
-        console.log(`  Moved ${task.key} to in_progress`);
-      } else if (spec.targetStatus === 'closed') {
-        await taskService.transition(task.id, 'closed', spec.resolution ?? null, task.version, admin.id);
-        console.log(`  Closed ${task.key}`);
-      }
+    // Transition bug task to in_progress
+    const bugTask = tasks[1];
+    await taskService.acquireClaim(bugTask.id, admin.id, null, bugTask.version);
+    const claimed = await repos.tasks.findById(bugTask.id);
+    if (claimed) {
+      await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
     }
+    console.log(`  Moved ${bugTask.key} to in_progress`);
+
+    // Close the chore task
+    const choreTask = tasks[2];
+    await taskService.transition(choreTask.id, 'closed', 'completed', choreTask.version, admin.id);
+    console.log(`  Closed ${choreTask.key}`);
   }
 
   console.log('Demo data seeded successfully!');
