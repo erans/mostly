@@ -48,15 +48,29 @@ async function seed() {
 
   console.log('Seeding demo data...');
 
-  // 1. Get or create admin user
+  // 1. Get or create admin user. Temporarily enable registration in case the
+  //    workspace already has human users (e.g. from a shared volume).
   let admin = await repos.principals.findByHandle(workspace.id, 'admin');
   if (!admin) {
+    const ws = await repos.workspaces.findById(workspace.id);
+    const wasOpen = ws?.allow_registration ?? false;
+    if (!wasOpen) {
+      await repos.workspaces.update(workspace.id, { allow_registration: true, updated_at: new Date().toISOString() });
+    }
     const result = await authService.register(workspace.id, {
       handle: 'admin',
       password: 'admin',
       display_name: 'Admin',
     });
     admin = result.principal;
+    if (!wasOpen) {
+      await repos.workspaces.update(workspace.id, { allow_registration: false, updated_at: new Date().toISOString() });
+    }
+    // Ensure the seeded admin has admin privileges
+    if (!admin.is_admin) {
+      await repos.principals.update(admin.id, { is_admin: true, updated_at: new Date().toISOString() });
+      admin = (await repos.principals.findByHandle(workspace.id, 'admin'))!;
+    }
     console.log(`  Created admin user: ${admin.handle}`);
   } else {
     console.log(`  Admin user already exists: ${admin.handle}`);
