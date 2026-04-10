@@ -46,16 +46,9 @@ async function seed() {
   const projectService = new ProjectService(repos.projects);
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
 
-  // Check if already seeded by looking for the demo project specifically
-  const existingDemo = await repos.projects.findByKey(workspace.id, 'DEMO');
-  if (existingDemo) {
-    console.log('Demo data already exists, skipping seed.');
-    return;
-  }
-
   console.log('Seeding demo data...');
 
-  // 1. Get or create admin user (first user is automatically admin)
+  // 1. Get or create admin user
   let admin = await repos.principals.findByHandle(workspace.id, 'admin');
   if (!admin) {
     const result = await authService.register(workspace.id, {
@@ -69,46 +62,55 @@ async function seed() {
     console.log(`  Admin user already exists: ${admin.handle}`);
   }
 
-  // 2. Create demo project
-  const project = await projectService.create(workspace.id, {
-    key: 'DEMO',
-    name: 'Demo Project',
-    description: 'A sample project to explore Mostly',
-  }, admin.id);
-  console.log(`  Created project: ${project.key}`);
+  // 2. Get or create demo project
+  let project = await repos.projects.findByKey(workspace.id, 'DEMO');
+  if (!project) {
+    project = await projectService.create(workspace.id, {
+      key: 'DEMO',
+      name: 'Demo Project',
+      description: 'A sample project to explore Mostly',
+    }, admin.id);
+    console.log(`  Created project: ${project.key}`);
+  } else {
+    console.log(`  Project already exists: ${project.key}`);
+  }
 
-  // 3. Create sample tasks
-  const taskInputs = [
-    { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.' },
-    { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.' },
-    { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.' },
-    { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.' },
+  // 3. Get or create sample tasks, then apply expected transitions
+  const taskSpecs = [
+    { type: 'feature', title: 'Design the landing page', description: 'Create wireframes and high-fidelity mockups for the main landing page.', expectedKey: 'DEMO-1' },
+    { type: 'bug', title: 'Fix login redirect loop', description: 'Users are redirected back to login after successful authentication on Safari.', expectedKey: 'DEMO-2', targetStatus: 'in_progress' as const },
+    { type: 'chore', title: 'Update dependencies to latest versions', description: 'Run pnpm update and fix any breaking changes.', expectedKey: 'DEMO-3', targetStatus: 'closed' as const, resolution: 'completed' as const },
+    { type: 'research', title: 'Evaluate real-time sync options', description: 'Compare WebSockets, SSE, and polling for live task updates.', expectedKey: 'DEMO-4' },
   ];
 
-  const createdTasks = [];
-  for (const input of taskInputs) {
-    const task = await taskService.create(workspace.id, {
-      ...input,
-      project_id: project.id,
-      assignee_id: admin.id,
-    }, admin.id);
-    createdTasks.push(task);
-    console.log(`  Created task: ${task.key} — ${task.title}`);
-  }
+  for (const spec of taskSpecs) {
+    let task = await repos.tasks.findByKey(workspace.id, spec.expectedKey);
+    if (!task) {
+      task = await taskService.create(workspace.id, {
+        type: spec.type,
+        title: spec.title,
+        description: spec.description,
+        project_id: project.id,
+        assignee_id: admin.id,
+      }, admin.id);
+      console.log(`  Created task: ${task.key} — ${task.title}`);
+    } else {
+      console.log(`  Task already exists: ${task.key}`);
+    }
 
-  // 4. Transition the bug task to in_progress (via claimed first)
-  const bugTask = createdTasks[1];
-  await taskService.acquireClaim(bugTask.id, admin.id, null, bugTask.version);
-  const claimedBug = await repos.tasks.findById(bugTask.id);
-  if (claimedBug) {
-    await taskService.transition(claimedBug.id, 'in_progress', null, claimedBug.version, admin.id);
+    // Apply transitions if task is not yet in the target status
+    if (spec.targetStatus === 'in_progress' && task.status === 'open') {
+      await taskService.acquireClaim(task.id, admin.id, null, task.version);
+      const claimed = await repos.tasks.findById(task.id);
+      if (claimed) {
+        await taskService.transition(claimed.id, 'in_progress', null, claimed.version, admin.id);
+      }
+      console.log(`  Moved ${task.key} to in_progress`);
+    } else if (spec.targetStatus === 'closed' && task.status !== 'closed') {
+      await taskService.transition(task.id, 'closed', spec.resolution ?? null, task.version, admin.id);
+      console.log(`  Closed ${task.key}`);
+    }
   }
-  console.log(`  Moved ${bugTask.key} to in_progress`);
-
-  // 5. Close the chore task
-  const choreTask = createdTasks[2];
-  await taskService.transition(choreTask.id, 'closed', 'completed', choreTask.version, admin.id);
-  console.log(`  Closed ${choreTask.key}`);
 
   console.log('Demo data seeded successfully!');
 }
