@@ -16,7 +16,7 @@ RUN pnpm build
 RUN cd packages/web && VITE_SINGLE_ORIGIN=true npx vite build
 
 # Copy web dist into server/public so Hono serves it
-RUN cp -r packages/web/dist packages/server/public
+RUN rm -rf packages/server/public && cp -r packages/web/dist packages/server/public
 
 # Compile the seed script
 RUN npx tsup docker/seed.ts --format esm --target es2022 --out-dir docker --no-dts --no-sourcemap
