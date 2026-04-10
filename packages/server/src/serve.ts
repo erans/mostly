@@ -53,6 +53,13 @@ function loadConfig(): MostlyConfig {
   return { port, server_url: fileConfig.server_url, agent_token: fileConfig.agent_token };
 }
 
+/** Returns true when a request should receive the SPA index.html fallback. */
+export function isSpaFallbackPath(method: string, path: string): boolean {
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  if (path === '/v0' || path.startsWith('/v0/') || path === '/healthz') return false;
+  return true;
+}
+
 async function main() {
   const config = loadConfig();
   const port = config.port ?? DEFAULT_PORT;
@@ -166,10 +173,7 @@ async function main() {
     app.use('*', serveStatic({ root: publicDir }));
     // SPA fallback: non-API GET/HEAD requests that didn't match a static file get index.html
     app.use('*', async (c, next) => {
-      if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
-        return next();
-      }
-      if (c.req.path === '/v0' || c.req.path.startsWith('/v0/') || c.req.path === '/healthz') {
+      if (!isSpaFallbackPath(c.req.method, c.req.path)) {
         return next();
       }
       return serveStatic({ root: publicDir, path: 'index.html' })(c, next);
