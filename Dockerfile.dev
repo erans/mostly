@@ -18,8 +18,9 @@ RUN cd packages/web && VITE_SINGLE_ORIGIN=true npx vite build
 # Copy web dist into server/public so Hono serves it
 RUN rm -rf packages/server/public && cp -r packages/web/dist packages/server/public
 
-# Compile the seed script
-RUN npx tsup docker/seed.ts --format esm --target es2022 --out-dir docker --no-dts --no-sourcemap
+# Compile the seed script (mark workspace packages as external — they're already built)
+RUN npx tsup docker/seed.ts --format esm --target es2022 --out-dir packages/server/dist --no-dts --no-sourcemap \
+    --external @mostly/db --external @mostly/core --external @mostly/types
 
 FROM node:20-slim
 

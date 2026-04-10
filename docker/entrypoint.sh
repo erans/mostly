@@ -11,7 +11,7 @@ echo "  Port: ${MOSTLY_PORT:-6080}"
 # Seed demo data if requested
 if [ "${MOSTLY_SEED_DEMO}" = "true" ]; then
   echo "Running demo seed..."
-  node docker/seed.js
+  node packages/server/dist/seed.js
 fi
 
 echo "Starting server..."

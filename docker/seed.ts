@@ -18,7 +18,8 @@ async function seed() {
   }
 
   const db = createLocalDb(DB_PATH);
-  const migrationsDir = join(__dirname, '..', 'packages', 'db', 'migrations');
+  // When compiled by tsup into packages/server/dist/, __dirname is /app/packages/server/dist
+  const migrationsDir = join(__dirname, '..', '..', 'db', 'migrations');
   runMigrations(db, migrationsDir);
 
   const repos = createRepositories(db);
