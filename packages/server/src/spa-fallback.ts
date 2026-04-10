@@ -1,9 +1,18 @@
+const STATIC_ASSET_EXTENSIONS = new Set([
+  '.js', '.css', '.map', '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg',
+  '.woff', '.woff2', '.ttf', '.eot', '.json', '.txt', '.xml', '.webp',
+  '.webmanifest',
+]);
+
 /** Returns true when a request should receive the SPA index.html fallback. */
 export function isSpaFallbackPath(method: string, path: string): boolean {
   if (method !== 'GET' && method !== 'HEAD') return false;
   if (path === '/v0' || path.startsWith('/v0/') || path === '/healthz') return false;
-  // Paths with a file extension are static asset requests — let them 404 naturally
-  const lastSegment = path.split('/').pop() ?? '';
-  if (lastSegment.includes('.')) return false;
+  // Known static asset extensions should 404 naturally if missing
+  const dotIdx = path.lastIndexOf('.');
+  if (dotIdx > path.lastIndexOf('/')) {
+    const ext = path.slice(dotIdx);
+    if (STATIC_ASSET_EXTENSIONS.has(ext)) return false;
+  }
   return true;
 }
