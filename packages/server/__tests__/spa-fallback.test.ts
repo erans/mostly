@@ -37,4 +37,11 @@ describe('isSpaFallbackPath', () => {
   it('returns false for /healthz', () => {
     expect(isSpaFallbackPath('GET', '/healthz')).toBe(false);
   });
+
+  it('returns false for missing static asset paths (file extension)', () => {
+    expect(isSpaFallbackPath('GET', '/favicon.ico')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/robots.txt')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/assets/app.js')).toBe(false);
+    expect(isSpaFallbackPath('GET', '/assets/style.css')).toBe(false);
+  });
 });
