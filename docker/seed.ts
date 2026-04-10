@@ -57,23 +57,28 @@ async function seed() {
     if (!wasOpen) {
       await repos.workspaces.update(workspace.id, { allow_registration: true, updated_at: new Date().toISOString() });
     }
-    const result = await authService.register(workspace.id, {
-      handle: 'admin',
-      password: 'admin',
-      display_name: 'Admin',
-    });
-    admin = result.principal;
-    if (!wasOpen) {
-      await repos.workspaces.update(workspace.id, { allow_registration: false, updated_at: new Date().toISOString() });
-    }
-    // Ensure the seeded admin has admin privileges
-    if (!admin.is_admin) {
-      await repos.principals.update(admin.id, { is_admin: true, updated_at: new Date().toISOString() });
-      admin = (await repos.principals.findByHandle(workspace.id, 'admin'))!;
+    try {
+      const result = await authService.register(workspace.id, {
+        handle: 'admin',
+        password: 'admin',
+        display_name: 'Admin',
+      });
+      admin = result.principal;
+    } finally {
+      if (!wasOpen) {
+        await repos.workspaces.update(workspace.id, { allow_registration: false, updated_at: new Date().toISOString() });
+      }
     }
     console.log(`  Created admin user: ${admin.handle}`);
   } else {
     console.log(`  Admin user already exists: ${admin.handle}`);
+  }
+
+  // Ensure admin always has admin privileges (repairs partial seeds)
+  if (!admin.is_admin) {
+    await repos.principals.update(admin.id, { is_admin: true, updated_at: new Date().toISOString() });
+    admin = (await repos.principals.findByHandle(workspace.id, 'admin'))!;
+    console.log(`  Promoted ${admin.handle} to admin`);
   }
 
   // 2. Get or create demo project
