@@ -2,6 +2,7 @@ import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
 import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256 } from '@mostly/core';
 import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
@@ -158,6 +159,15 @@ async function main() {
     maintenanceService,
     authService,
   });
+
+  // Serve pre-built web UI from public/ if it exists (Docker builds copy it there)
+  const publicDir = join(__dirname, '..', 'public');
+  if (existsSync(publicDir)) {
+    app.use('*', serveStatic({ root: 'packages/server/public' }));
+    // SPA fallback: any non-API path that didn't match a static file gets index.html
+    app.get('*', serveStatic({ root: 'packages/server/public', path: 'index.html' }));
+    console.log(`Serving web UI from ${publicDir}`);
+  }
 
   console.log(`Mostly server starting on port ${port}...`);
   serve({
