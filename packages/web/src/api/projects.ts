@@ -16,3 +16,10 @@ export function listProjects(params: Partial<ListParams> = {}) {
 export function getProject(id: string) {
   return apiFetch<SingleResponse<Project>>(`/v0/projects/${encodeURIComponent(id)}`);
 }
+
+export function createProject(body: { key: string; name: string; description?: string | null }) {
+  return apiFetch<SingleResponse<Project>>('/v0/projects', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
