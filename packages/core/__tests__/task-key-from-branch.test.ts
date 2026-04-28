@@ -33,4 +33,9 @@ describe('inferTaskFromBranch', () => {
   it('uses the first match if multiple keys appear', () => {
     expect(inferTaskFromBranch('AUTH-1-related-AUTH-2', 'AUTH')).toBe('AUTH-1');
   });
+
+  it('treats regex metacharacters in projectKey as literal', () => {
+    expect(inferTaskFromBranch('FOO-1-bar', 'F.O')).toBeNull();
+    expect(inferTaskFromBranch('F.O-1-bar', 'F.O')).toBe('F.O-1');
+  });
 });

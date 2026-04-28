@@ -5,7 +5,8 @@
  */
 export function inferTaskFromBranch(branch: string | null, projectKey: string): string | null {
   if (!branch) return null;
-  const re = new RegExp(`(?:^|[^A-Za-z0-9])(${projectKey})-(\\d+)(?:[^A-Za-z0-9]|$)`);
+  const escaped = projectKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|[^A-Za-z0-9])(${escaped})-(\\d+)(?:[^A-Za-z0-9]|$)`);
   const m = branch.match(re);
   if (!m) return null;
   return `${m[1]}-${m[2]}`;
