@@ -143,5 +143,39 @@ export function loginCommand(): Command {
 
       console.log(`Logged in as ${handle}.`);
       console.log(`API key "${keyName}" saved to config.`);
+
+      // 4. Optionally capture email for git-aware actor inference.
+      // Fetch the current principal to see if email is already set.
+      try {
+        const meRes = await fetch(`${serverUrl}/v0/auth/me`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        if (meRes.ok) {
+          const meBody = (await meRes.json()) as { data: { email?: string | null } };
+          if (!meBody.data.email) {
+            const email = await promptText(
+              'Email for git-aware actor inference (optional, press Enter to skip): ',
+            );
+            if (email.trim()) {
+              const patchRes = await fetch(`${serverUrl}/v0/auth/me`, {
+                method: 'PATCH',
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email.trim() }),
+              });
+              if (!patchRes.ok) {
+                // Non-fatal: email is optional for actor inference
+                console.error('Note: could not save email (will not affect login).');
+              } else {
+                console.log(`Email "${email.trim()}" saved.`);
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-fatal: email prompt is best-effort
+      }
     });
 }

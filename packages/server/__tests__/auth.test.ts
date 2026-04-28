@@ -589,4 +589,194 @@ describe('auth routes', () => {
       expect(Object.keys(body.error.details)).toContain('password');
     });
   });
+
+  describe('invites with email', () => {
+    it('invite with email persists it on the principal', async () => {
+      const { app } = createTestApp();
+
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      const inviteRes = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'newuser', email: 'newuser@example.com' }),
+      });
+      expect(inviteRes.status).toBe(201);
+      const inviteBody = await inviteRes.json();
+      expect(inviteBody.data.principal.email).toBe('newuser@example.com');
+
+      // Accept invite and verify email persists
+      const acceptRes = await app.request('/v0/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteBody.data.invite_token, password: 'newuser-pass' }),
+      });
+      expect(acceptRes.status).toBe(201);
+      expect((await acceptRes.json()).data.email).toBe('newuser@example.com');
+    });
+
+    it('rejects invite with invalid email with 400', async () => {
+      const { app } = createTestApp();
+
+      const adminRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'admin', password: 'password123' }),
+      });
+      const adminCookie = getSessionCookie(adminRes);
+
+      const res = await app.request('/v0/auth/invite', {
+        method: 'POST',
+        headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'newuser', email: 'not-an-email' }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.details).toHaveProperty('email');
+    });
+  });
+
+  describe('PATCH /v0/auth/me', () => {
+    it('updates email on own principal; GET /me reflects the change', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      // Initially no email
+      const meBefore = await app.request('/v0/auth/me', {
+        headers: { Cookie: sessionCookie },
+      });
+      expect((await meBefore.json()).data.email).toBeNull();
+
+      // PATCH email
+      const patchRes = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'alice@example.com' }),
+      });
+      expect(patchRes.status).toBe(200);
+      expect((await patchRes.json()).data.email).toBe('alice@example.com');
+
+      // GET /me now reflects the email
+      const meAfter = await app.request('/v0/auth/me', {
+        headers: { Cookie: sessionCookie },
+      });
+      expect((await meAfter.json()).data.email).toBe('alice@example.com');
+    });
+
+    it('can clear email by patching null', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      // Set email
+      await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'alice@example.com' }),
+      });
+
+      // Clear it
+      const patchRes = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: null }),
+      });
+      expect(patchRes.status).toBe(200);
+      expect((await patchRes.json()).data.email).toBeNull();
+    });
+
+    it('rejects invalid email format with 400', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      const res = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'not-an-email' }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.details).toHaveProperty('email');
+    });
+
+    it('requires authentication', async () => {
+      const { app } = createTestApp();
+      const res = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'alice@example.com' }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('also works with API key auth', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      const keyRes = await app.request('/v0/auth/api-keys', {
+        method: 'POST',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'my-key' }),
+      });
+      const apiKey = (await keyRes.json()).data.key;
+
+      const patchRes = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'alice@example.com' }),
+      });
+      expect(patchRes.status).toBe(200);
+      expect((await patchRes.json()).data.email).toBe('alice@example.com');
+    });
+  });
+
+  describe('PATCH /v0/principals/:id email round-trip', () => {
+    it('PATCH email via :id and subsequent GET reflects new value', async () => {
+      const { app, testAgentToken, testPrincipalId } = createTestApp();
+
+      const patchRes = await app.request(`/v0/principals/${testPrincipalId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${testAgentToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: 'agent@example.com', actor_id: testPrincipalId }),
+      });
+      expect(patchRes.status).toBe(200);
+      expect((await patchRes.json()).data.email).toBe('agent@example.com');
+
+      const getRes = await app.request(`/v0/principals/${testPrincipalId}`, {
+        headers: { Authorization: `Bearer ${testAgentToken}` },
+      });
+      expect((await getRes.json()).data.email).toBe('agent@example.com');
+    });
+  });
 });

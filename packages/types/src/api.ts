@@ -13,6 +13,7 @@ export const CreatePrincipalRequest = z.object({
   handle: z.string().min(1),
   kind: z.enum(['human', 'agent', 'service']),
   display_name: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
   metadata_json: z.record(z.unknown()).nullable().optional(),
 }).merge(ActorFields);
 export type CreatePrincipalRequest = z.infer<typeof CreatePrincipalRequest>;
@@ -20,6 +21,7 @@ export type CreatePrincipalRequest = z.infer<typeof CreatePrincipalRequest>;
 export const PatchPrincipalRequest = z.object({
   display_name: z.string().nullable().optional(),
   kind: z.enum(['human', 'agent', 'service']).optional(),
+  email: z.string().email().nullable().optional(),
   metadata_json: z.record(z.unknown()).nullable().optional(),
   is_active: z.boolean().optional(),
 }).merge(ActorFields);

@@ -195,7 +195,7 @@ export class AuthService {
   async createInvite(
     workspaceId: string,
     adminPrincipalId: string,
-    input: { handle: string; display_name?: string },
+    input: { handle: string; display_name?: string; email?: string | null },
   ): Promise<{ principal: Principal; inviteToken: string }> {
     const admin = await this.principals.findById(adminPrincipalId);
     if (!admin || !admin.is_admin) throw new ForbiddenError('Only admins can create invites');
@@ -213,6 +213,7 @@ export class AuthService {
       handle: input.handle,
       kind: 'human',
       display_name: input.display_name ?? null,
+      email: input.email ?? null,
       metadata_json: { invite_token_hash: sha256(inviteToken), invite_expires_at: expiresAt },
       password_hash: null,
       is_active: false,

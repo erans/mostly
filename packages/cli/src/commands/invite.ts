@@ -5,6 +5,7 @@ import { output, type OutputOptions } from '../output.js';
 
 interface InviteOptions extends OutputOptions {
   displayName?: string;
+  email?: string;
   actor?: string;
 }
 
@@ -41,6 +42,7 @@ export function inviteCommand(): Command {
     .description('Invite a new user (admin only)')
     .argument('<handle>', 'Handle for the new user')
     .option('--display-name <name>', 'Display name for the new user')
+    .option('--email <addr>', 'Email for actor inference')
     .option('--json', 'Output JSON')
     .option('--quiet', 'Minimal output (prints only the invite token)')
     .option('--actor <actor>', 'Actor handle override')
@@ -52,6 +54,7 @@ export function inviteCommand(): Command {
 
         const body: Record<string, unknown> = { handle };
         if (opts.displayName) body.display_name = opts.displayName;
+        if (opts.email) body.email = opts.email;
 
         const result = await client.post('/v0/auth/invite', body);
         const principal = result?.data?.principal;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractSessionCookie, defaultKeyName } from '../src/commands/login.js';
-import { deriveAcceptUrl } from '../src/commands/invite.js';
+import { deriveAcceptUrl, inviteCommand } from '../src/commands/invite.js';
 import { projectCommand } from '../src/commands/project.js';
 import { taskCommand } from '../src/commands/task.js';
 import { whereamiCommand } from '../src/commands/whereami.js';
@@ -355,5 +355,34 @@ describe('whereami options', () => {
     expect(opts.from).toBeUndefined();
     expect(opts.json).toBeUndefined();
     expect(opts.actor).toBeUndefined();
+  });
+});
+
+describe('invite --email option', () => {
+  function parseInviteOpts(argv: string[]): Record<string, any> {
+    const cmd = inviteCommand();
+    // Commander needs a positional argument before options in parseOptions
+    cmd.parseOptions(argv);
+    return cmd.opts();
+  }
+
+  it('parses --email', () => {
+    const opts = parseInviteOpts(['handle', '--email', 'user@example.com']);
+    expect(opts.email).toBe('user@example.com');
+  });
+
+  it('email is undefined when absent', () => {
+    const opts = parseInviteOpts(['handle']);
+    expect(opts.email).toBeUndefined();
+  });
+
+  it('parses --display-name alongside --email', () => {
+    const opts = parseInviteOpts([
+      'handle',
+      '--email', 'user@example.com',
+      '--display-name', 'User Name',
+    ]);
+    expect(opts.email).toBe('user@example.com');
+    expect(opts.displayName).toBe('User Name');
   });
 });

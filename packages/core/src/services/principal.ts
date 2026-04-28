@@ -6,6 +6,7 @@ export interface CreatePrincipalInput {
   handle: string;
   kind: string;
   display_name?: string | null;
+  email?: string | null;
   metadata_json?: Record<string, unknown> | null;
 }
 
@@ -24,6 +25,7 @@ export class PrincipalService {
       handle: input.handle,
       kind: input.kind,
       display_name: input.display_name ?? null,
+      email: input.email ?? null,
       metadata_json: input.metadata_json ?? null,
       password_hash: null,
       is_active: true,
@@ -49,7 +51,7 @@ export class PrincipalService {
     return this.principals.list(workspaceId, cursor, limit);
   }
 
-  async update(id: string, input: Partial<Pick<Principal, 'display_name' | 'kind' | 'metadata_json' | 'is_active'>>): Promise<Principal> {
+  async update(id: string, input: Partial<Pick<Principal, 'display_name' | 'kind' | 'metadata_json' | 'is_active' | 'email'>>): Promise<Principal> {
     const existing = await this.principals.findById(id);
     if (!existing) throw new NotFoundError('principal', id);
     return this.principals.update(id, {

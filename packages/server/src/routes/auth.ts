@@ -12,6 +12,7 @@ import {
   InvalidArgumentError,
   UnauthorizedError,
 } from '@mostly/types';
+import { z } from 'zod';
 import type { AppEnv } from '../app.js';
 
 const COOKIE_OPTIONS = {
@@ -137,6 +138,36 @@ export function authRoutes(): Hono<AppEnv> {
     return c.json({ data: principal });
   });
 
+  // PATCH /v0/auth/me — update own principal (only email and display_name allowed)
+  routes.patch('/me', async (c) => {
+    const { principalId } = await requireHumanAuth(c);
+    // Use the parsedBody set by actorMiddleware if available; otherwise read directly.
+    let raw: unknown = c.get('parsedBody' as any);
+    if (!raw || typeof raw !== 'object' || Object.keys(raw as object).length === 0) {
+      try {
+        raw = await c.req.json();
+      } catch {
+        raw = {};
+      }
+    }
+    // Restrict to only safe self-update fields (no kind, is_active, etc.)
+    const schema = z.object({
+      display_name: z.string().nullable().optional(),
+      email: z.string().email().nullable().optional(),
+    });
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      const details: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        details[issue.path.join('.')] = issue.message;
+      }
+      throw new InvalidArgumentError('Invalid request body', details);
+    }
+    const principalService = c.get('principalService');
+    const principal = await principalService.update(principalId, parsed.data);
+    return c.json({ data: principal });
+  });
+
   // POST /v0/auth/logout
   routes.post('/logout', async (c) => {
     const authService = c.get('authService');
@@ -183,7 +214,11 @@ export function authRoutes(): Hono<AppEnv> {
     const data = await parseJsonBody(c, InviteRequest);
 
     const authService = c.get('authService');
-    const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, data);
+    const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, {
+      handle: data.handle,
+      display_name: data.display_name,
+      email: data.email,
+    });
     return c.json({ data: { principal, invite_token: inviteToken } }, 201);
   });
 

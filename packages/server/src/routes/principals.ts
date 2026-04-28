@@ -57,7 +57,7 @@ export function principalRoutes(): Hono<AppEnv> {
       throw new InvalidArgumentError('Invalid request body', details);
     }
 
-    const { handle, kind, display_name, metadata_json } = parsed.data;
+    const { handle, kind, display_name, email, metadata_json } = parsed.data;
 
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
@@ -66,6 +66,7 @@ export function principalRoutes(): Hono<AppEnv> {
       handle,
       kind,
       display_name,
+      email,
       metadata_json,
     });
 
@@ -97,7 +98,7 @@ export function principalRoutes(): Hono<AppEnv> {
       throw new InvalidArgumentError('Invalid request body', details);
     }
 
-    const { display_name, kind, metadata_json, is_active } = parsed.data;
+    const { display_name, kind, email, metadata_json, is_active } = parsed.data;
 
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
@@ -106,6 +107,7 @@ export function principalRoutes(): Hono<AppEnv> {
     const principal = await principalService.update(existing.id, {
       display_name,
       kind,
+      email,
       metadata_json,
       is_active,
     });
