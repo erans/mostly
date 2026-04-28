@@ -111,7 +111,7 @@ const NormalizedUrl = z
   .string()
   .min(1)
   .refine(
-    (s) => !/^[a-z]+:\/\//i.test(s) && !s.startsWith('git@') && !s.endsWith('/'),
+    (s) => !/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(s) && !/^[^/\s]+@/.test(s) && !s.endsWith('/'),
     'normalized_url must be canonical: no scheme, no trailing slash, no leading user@',
   );
 

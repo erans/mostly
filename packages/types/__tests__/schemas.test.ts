@@ -208,6 +208,51 @@ describe('ProjectRepoLinkSchema', () => {
       }),
     ).toThrow();
   });
+
+  it('rejects when normalized_url starts with git@', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'git@github.com:acme/auth',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects when normalized_url has trailing slash', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'github.com/acme/auth/',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects unusual schemes like git+ssh://', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'git+ssh://github.com/acme/auth',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
 });
 
 describe('CreateRepoLinkRequest', () => {
