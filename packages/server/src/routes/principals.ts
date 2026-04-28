@@ -25,14 +25,20 @@ async function resolvePrincipal(
 export function principalRoutes(): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  // GET /v0/principals - list principals
+  // GET /v0/principals - list principals (supports ?email= filter)
   routes.get('/', async (c) => {
     const query = c.req.query();
-    const params = ListParams.parse(query);
-
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
 
+    // When ?email= is present, return a flat array of matching principals
+    // (no cursor pagination — callers use this for point-lookups).
+    if (query.email) {
+      const matches = await principalService.findByEmail(workspaceId, query.email);
+      return c.json({ data: matches });
+    }
+
+    const params = ListParams.parse(query);
     const result = await principalService.list(workspaceId, params.cursor, params.limit);
     return c.json({ data: result });
   });

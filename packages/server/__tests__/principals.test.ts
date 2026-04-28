@@ -203,5 +203,58 @@ describe('Principal Routes', () => {
       const body = await res.json();
       expect(body.data.items.length).toBeLessThanOrEqual(2);
     });
+
+    it('GET /v0/principals?email= returns matching principals', async () => {
+      const now = new Date().toISOString();
+      // Seed two principals with the same email directly via repos
+      await env.repos.principals.create({
+        id: 'prin_email_test_1',
+        workspace_id: env.workspaceId,
+        handle: 'email-user-1',
+        kind: 'human',
+        display_name: 'Email User 1',
+        email: 'shared@example.com',
+        metadata_json: null,
+        password_hash: null,
+        is_active: true,
+        is_admin: false,
+        created_at: now,
+        updated_at: now,
+      });
+      await env.repos.principals.create({
+        id: 'prin_email_test_2',
+        workspace_id: env.workspaceId,
+        handle: 'email-user-2',
+        kind: 'human',
+        display_name: 'Email User 2',
+        email: 'shared@example.com',
+        metadata_json: null,
+        password_hash: null,
+        is_active: true,
+        is_admin: false,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const res = await env.app.request(
+        `/v0/principals?email=${encodeURIComponent('shared@example.com')}`,
+        { headers: { Authorization: `Bearer ${env.testAgentToken}` } },
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBe(2);
+    });
+
+    it('GET /v0/principals?email= returns empty array when no match', async () => {
+      const res = await env.app.request(
+        `/v0/principals?email=${encodeURIComponent('nobody@example.com')}`,
+        { headers: { Authorization: `Bearer ${env.testAgentToken}` } },
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBe(0);
+    });
   });
 });
