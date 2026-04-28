@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractSessionCookie, defaultKeyName } from '../src/commands/login.js';
-import { deriveAcceptUrl } from '../src/commands/invite.js';
+import { deriveAcceptUrl, inviteCommand } from '../src/commands/invite.js';
+import { projectCommand } from '../src/commands/project.js';
+import { taskCommand } from '../src/commands/task.js';
+import { whereamiCommand } from '../src/commands/whereami.js';
 
 // `os.hostname` is imported inside login.ts, so mock the module.
 vi.mock('os', async () => {
@@ -116,4 +119,313 @@ describe('invite helpers', () => {
       expect(deriveAcceptUrl('not a url', 'tok')).toBe('not a url/invite/tok');
     });
   });
+});
+
+describe('project subcommands option parsing', () => {
+  /**
+   * Helper: find a registered subcommand on the project command by name,
+   * and return its parsed opts object without triggering the action handler.
+   *
+   * We use Commander's parseOptions() which fills opts but does NOT fire
+   * the action callback — safe for unit tests that just want to verify
+   * option definitions and defaults.
+   */
+  function parseProjectSubcommandOpts(subName: string, argv: string[]): Record<string, any> {
+    const cmd = projectCommand();
+    const sub = cmd.commands.find((c) => c.name() === subName);
+    if (!sub) throw new Error(`subcommand "${subName}" not found`);
+    // setOptionValueWithSource handles defaults; parseOptions fills from argv.
+    sub.parseOptions(argv);
+    return sub.opts();
+  }
+
+  describe('project link', () => {
+    it('has correct defaults', () => {
+      const opts = parseProjectSubcommandOpts('link', []);
+      expect(opts.remote).toBe('origin');
+      expect(opts.subpath).toBe('');
+      expect(opts.allRemotes).toBeUndefined();
+      expect(opts.project).toBeUndefined();
+    });
+
+    it('parses --project and --remote', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--project', 'AUTH', '--remote', 'upstream']);
+      expect(opts.project).toBe('AUTH');
+      expect(opts.remote).toBe('upstream');
+    });
+
+    it('parses --all-remotes as allRemotes', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--all-remotes']);
+      expect(opts.allRemotes).toBe(true);
+    });
+
+    it('parses --subpath', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--subpath', 'packages/auth']);
+      expect(opts.subpath).toBe('packages/auth');
+    });
+
+    it('parses --from', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--from', '/tmp/myrepo']);
+      expect(opts.from).toBe('/tmp/myrepo');
+    });
+
+    it('parses --json and --quiet', () => {
+      const optsJson = parseProjectSubcommandOpts('link', ['--json']);
+      expect(optsJson.json).toBe(true);
+      const optsQuiet = parseProjectSubcommandOpts('link', ['--quiet']);
+      expect(optsQuiet.quiet).toBe(true);
+    });
+  });
+
+  describe('project unlink', () => {
+    it('has correct defaults', () => {
+      const opts = parseProjectSubcommandOpts('unlink', []);
+      expect(opts.remote).toBe('origin');
+      expect(opts.subpath).toBe('');
+      expect(opts.all).toBeUndefined();
+    });
+
+    it('parses --project', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('parses --all', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH', '--all']);
+      expect(opts.all).toBe(true);
+    });
+
+    it('parses --from', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH', '--from', '/repo']);
+      expect(opts.from).toBe('/repo');
+    });
+
+    it('parses --remote and --subpath', () => {
+      const opts = parseProjectSubcommandOpts('unlink', [
+        '--project', 'AUTH',
+        '--remote', 'upstream',
+        '--subpath', 'packages/auth',
+      ]);
+      expect(opts.remote).toBe('upstream');
+      expect(opts.subpath).toBe('packages/auth');
+    });
+  });
+
+  describe('project links', () => {
+    it('has no required options (all optional)', () => {
+      const opts = parseProjectSubcommandOpts('links', []);
+      expect(opts.project).toBeUndefined();
+      expect(opts.json).toBeUndefined();
+      expect(opts.quiet).toBeUndefined();
+    });
+
+    it('parses --project', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('parses --json', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--json']);
+      expect(opts.json).toBe(true);
+    });
+
+    it('parses --quiet', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--quiet']);
+      expect(opts.quiet).toBe(true);
+    });
+  });
+});
+
+describe('task subcommands option parsing', () => {
+  /**
+   * Helper: find a registered subcommand on the task command by name,
+   * and return its parsed opts object without triggering the action handler.
+   */
+  function parseTaskSubcommandOpts(subName: string, argv: string[]): Record<string, any> {
+    const cmd = taskCommand();
+    const sub = cmd.commands.find((c) => c.name() === subName);
+    if (!sub) throw new Error(`subcommand "${subName}" not found`);
+    sub.parseOptions(argv);
+    return sub.opts();
+  }
+
+  const subcommandsWithNoGitContext = [
+    'create',
+    'list',
+    'show',
+    'claim',
+    'renew-claim',
+    'release-claim',
+    'start',
+    'block',
+    'close',
+    'cancel',
+  ];
+
+  for (const name of subcommandsWithNoGitContext) {
+    describe(`task ${name}`, () => {
+      it('accepts --no-git-context (Commander sets gitContext=false)', () => {
+        const opts = parseTaskSubcommandOpts(name, ['--no-git-context']);
+        // Commander.js maps --no-git-context to opts.gitContext === false
+        expect(opts.gitContext).toBe(false);
+      });
+
+      it('gitContext defaults to true when --no-git-context is absent', () => {
+        const opts = parseTaskSubcommandOpts(name, []);
+        expect(opts.gitContext).toBe(true);
+      });
+    });
+  }
+
+  describe('task create', () => {
+    it('parses --project', () => {
+      const opts = parseTaskSubcommandOpts('create', ['--title', 'T', '--type', 'chore', '--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('project is optional (undefined when absent)', () => {
+      const opts = parseTaskSubcommandOpts('create', ['--title', 'T', '--type', 'chore']);
+      expect(opts.project).toBeUndefined();
+    });
+  });
+
+  describe('task list', () => {
+    it('parses --project', () => {
+      const opts = parseTaskSubcommandOpts('list', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('project is optional (undefined when absent)', () => {
+      const opts = parseTaskSubcommandOpts('list', []);
+      expect(opts.project).toBeUndefined();
+    });
+  });
+
+  describe('task show', () => {
+    it('has no required positional (id is optional)', () => {
+      // Should parse without error when no positional is provided
+      expect(() => parseTaskSubcommandOpts('show', [])).not.toThrow();
+    });
+  });
+
+  describe('task add-update', () => {
+    it('does NOT have --no-git-context (positional id is required)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'add-update')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
+    });
+  });
+
+  describe('task reap-expired', () => {
+    it('does NOT have --no-git-context (maintenance command)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'reap-expired')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
+    });
+  });
+
+  describe('task edit', () => {
+    it('does NOT have --no-git-context (always requires explicit id)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'edit')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
+    });
+  });
+});
+
+describe('whereami options', () => {
+  function parseOptions(argv: string[]): Record<string, any> {
+    const cmd = whereamiCommand();
+    cmd.parseOptions(argv);
+    return cmd.opts();
+  }
+
+  it('accepts --from, --json, --actor', () => {
+    const opts = parseOptions(['--from', '/tmp', '--json', '--actor', 'eran']);
+    expect(opts.from).toBe('/tmp');
+    expect(opts.json).toBe(true);
+    expect(opts.actor).toBe('eran');
+  });
+
+  it('all options are optional (no defaults set)', () => {
+    const opts = parseOptions([]);
+    expect(opts.from).toBeUndefined();
+    expect(opts.json).toBeUndefined();
+    expect(opts.actor).toBeUndefined();
+  });
+});
+
+describe('invite --email option', () => {
+  function parseInviteOpts(argv: string[]): Record<string, any> {
+    const cmd = inviteCommand();
+    // Commander needs a positional argument before options in parseOptions
+    cmd.parseOptions(argv);
+    return cmd.opts();
+  }
+
+  it('parses --email', () => {
+    const opts = parseInviteOpts(['handle', '--email', 'user@example.com']);
+    expect(opts.email).toBe('user@example.com');
+  });
+
+  it('email is undefined when absent', () => {
+    const opts = parseInviteOpts(['handle']);
+    expect(opts.email).toBeUndefined();
+  });
+
+  it('parses --display-name alongside --email', () => {
+    const opts = parseInviteOpts([
+      'handle',
+      '--email', 'user@example.com',
+      '--display-name', 'User Name',
+    ]);
+    expect(opts.email).toBe('user@example.com');
+    expect(opts.displayName).toBe('User Name');
+  });
+});
+
+// ─── --actor option presence on all inference-capable task subcommands ────────
+
+describe('task subcommands --actor option presence', () => {
+  const transitionSubcommands = [
+    'claim',
+    'renew-claim',
+    'release-claim',
+    'start',
+    'block',
+    'close',
+    'cancel',
+  ];
+
+  function getSubcommand(name: string) {
+    const cmd = taskCommand();
+    const sub = cmd.commands.find((c) => c.name() === name);
+    if (!sub) throw new Error(`subcommand "${name}" not found`);
+    return sub;
+  }
+
+  for (const name of transitionSubcommands) {
+    it(`task ${name} has --actor option`, () => {
+      const sub = getSubcommand(name);
+      const hasActor = sub.options.some((o) => o.long === '--actor');
+      expect(hasActor).toBe(true);
+    });
+
+    it(`task ${name} has --no-git-context option`, () => {
+      const sub = getSubcommand(name);
+      const hasNoGit = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasNoGit).toBe(true);
+    });
+  }
+
+  for (const name of ['list', 'show', 'create']) {
+    it(`task ${name} has --actor option`, () => {
+      const sub = getSubcommand(name);
+      const hasActor = sub.options.some((o) => o.long === '--actor');
+      expect(hasActor).toBe(true);
+    });
+  }
 });

@@ -180,3 +180,31 @@ export function formatProjectList(result: any, options: OutputOptions): void {
   }
   console.log(formatTable(items, PROJECT_COLUMNS));
 }
+
+// ---------- RepoLink formatters ----------
+
+export function formatRepoLink(link: { id: string; normalized_url: string; subpath: string; project_id: string }, options: OutputOptions): void {
+  if (options.json) {
+    console.log(JSON.stringify(link));
+    return;
+  }
+  if (options.quiet) {
+    console.log(link.id);
+    return;
+  }
+  console.log(`linked: ${link.normalized_url}${link.subpath ? ` /${link.subpath}` : ''} → ${link.project_id}`);
+}
+
+export function formatRepoLinkList(links: Array<{ id: string; normalized_url: string; subpath: string; project_id: string }>, options: OutputOptions): void {
+  if (options.json) {
+    console.log(JSON.stringify(links));
+    return;
+  }
+  if (options.quiet) {
+    for (const l of links) console.log(l.id);
+    return;
+  }
+  for (const l of links) {
+    console.log(`${l.normalized_url}\t${l.subpath || '/'}\t${l.project_id}`);
+  }
+}

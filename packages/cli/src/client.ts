@@ -129,7 +129,9 @@ export class MostlyClient {
       } catch {
         // Use default message
       }
-      throw new Error(message);
+      const error: any = new Error(message);
+      error.status = res.status;
+      throw error;
     }
 
     if (res.status === 204) return null;

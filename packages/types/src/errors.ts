@@ -33,8 +33,8 @@ export class InvalidArgumentError extends DomainError {
 }
 
 export class ConflictError extends DomainError {
-  constructor(message: string) {
-    super('conflict', message, 409);
+  constructor(message: string, details?: Record<string, string>) {
+    super('conflict', message, 409, details);
   }
 }
 

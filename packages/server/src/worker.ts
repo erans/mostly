@@ -1,5 +1,5 @@
 import { createD1Db, createRepositories, createD1TransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, RepoLinkService } from '@mostly/core';
 import { createApp } from './app.js';
 
 interface Env {
@@ -32,6 +32,7 @@ export default {
     const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
     const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
     const authService = new AuthService(repos.principals, repos.workspaces, repos.sessions, repos.apiKeys);
+    const repoLinkService = new RepoLinkService(repos.projectRepoLinks, repos.projects);
 
     const app = createApp({
       workspaceId: env.WORKSPACE_ID,
@@ -40,6 +41,7 @@ export default {
       taskService,
       maintenanceService,
       authService,
+      repoLinkService,
     });
 
     const response = await app.fetch(request, env);

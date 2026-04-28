@@ -4,6 +4,7 @@ import type { TransactionManager, TransactionContext } from '@mostly/core';
 import { DrizzleWorkspaceRepository } from './workspace.js';
 import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
+import { DrizzleProjectRepoLinkRepository } from './project-repo-link.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
 import { DrizzleSessionRepository } from './session.js';
@@ -18,6 +19,7 @@ export class DrizzleLocalTransactionManager implements TransactionManager {
       tasks: new DrizzleTaskRepository(this.db),
       taskUpdates: new DrizzleTaskUpdateRepository(this.db),
       projects: new DrizzleProjectRepository(this.db),
+      projectRepoLinks: new DrizzleProjectRepoLinkRepository(this.db),
       principals: new DrizzlePrincipalRepository(this.db),
       workspaces: new DrizzleWorkspaceRepository(this.db),
       sessions: new DrizzleSessionRepository(this.db),

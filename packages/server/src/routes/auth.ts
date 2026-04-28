@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
-import type { z } from 'zod';
+import { z } from 'zod';
 import {
   RegisterRequest,
   LoginRequest,
@@ -137,6 +137,24 @@ export function authRoutes(): Hono<AppEnv> {
     return c.json({ data: principal });
   });
 
+  // PATCH /v0/auth/me — update own principal (only email and display_name allowed)
+  routes.patch('/me', async (c) => {
+    const { principalId } = await requireHumanAuth(c);
+    // Restrict to only safe self-update fields (no kind, is_active, etc.).
+    // .strict() rejects unknown keys; .refine() ensures at least one field is present.
+    const UpdateMeRequest = z.object({
+      email: z.string().email().nullable().optional(),
+      display_name: z.string().nullable().optional(),
+    }).strict().refine(
+      (d) => d.email !== undefined || d.display_name !== undefined,
+      { message: 'must include at least one of: email, display_name' },
+    );
+    const data = await parseJsonBody(c, UpdateMeRequest);
+    const principalService = c.get('principalService');
+    const principal = await principalService.update(principalId, data);
+    return c.json({ data: principal });
+  });
+
   // POST /v0/auth/logout
   routes.post('/logout', async (c) => {
     const authService = c.get('authService');
@@ -183,7 +201,11 @@ export function authRoutes(): Hono<AppEnv> {
     const data = await parseJsonBody(c, InviteRequest);
 
     const authService = c.get('authService');
-    const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, data);
+    const { principal, inviteToken } = await authService.createInvite(workspaceId, principalId, {
+      handle: data.handle,
+      display_name: data.display_name,
+      email: data.email,
+    });
     return c.json({ data: { principal, invite_token: inviteToken } }, 201);
   });
 

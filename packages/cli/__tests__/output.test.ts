@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { formatTable, formatCard, output, formatTaskList, formatTask, formatPrincipal, formatPrincipalList, formatProject, formatProjectList } from '../src/output.js';
+import { formatTable, formatCard, output, formatTaskList, formatTask, formatPrincipal, formatPrincipalList, formatProject, formatProjectList, formatRepoLink, formatRepoLinkList } from '../src/output.js';
 
 describe('output', () => {
   beforeEach(() => {
@@ -169,6 +169,73 @@ describe('output', () => {
       const output = spy.mock.calls[0][0];
       expect(output).toContain('SLUG');
       expect(output).toContain('proj');
+    });
+  });
+
+  describe('formatRepoLink', () => {
+    const link = {
+      id: 'rlnk_abc',
+      normalized_url: 'github.com/acme/auth',
+      subpath: '',
+      project_id: 'proj_xyz',
+    };
+
+    it('outputs id in quiet mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLink(link, { quiet: true });
+      expect(spy).toHaveBeenCalledWith('rlnk_abc');
+    });
+
+    it('outputs JSON in json mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLink(link, { json: true });
+      expect(spy).toHaveBeenCalledWith(JSON.stringify(link));
+    });
+
+    it('outputs human-readable line in default mode (no subpath)', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLink(link, {});
+      expect(spy).toHaveBeenCalledWith('linked: github.com/acme/auth → proj_xyz');
+    });
+
+    it('includes subpath in human-readable line when present', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLink({ ...link, subpath: 'packages/auth' }, {});
+      expect(spy).toHaveBeenCalledWith('linked: github.com/acme/auth /packages/auth → proj_xyz');
+    });
+  });
+
+  describe('formatRepoLinkList', () => {
+    const links = [
+      { id: 'rlnk_1', normalized_url: 'github.com/acme/auth', subpath: '', project_id: 'proj_a' },
+      { id: 'rlnk_2', normalized_url: 'github.com/acme/mono', subpath: 'packages/api', project_id: 'proj_b' },
+    ];
+
+    it('outputs JSON in json mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLinkList(links, { json: true });
+      expect(spy).toHaveBeenCalledWith(JSON.stringify(links));
+    });
+
+    it('outputs tab-separated rows in default mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLinkList(links, {});
+      expect(spy).toHaveBeenCalledWith('github.com/acme/auth\t/\tproj_a');
+      expect(spy).toHaveBeenCalledWith('github.com/acme/mono\tpackages/api\tproj_b');
+    });
+
+    it('outputs only ids in quiet mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLinkList(links, { quiet: true });
+      expect(spy).toHaveBeenCalledWith('rlnk_1');
+      expect(spy).toHaveBeenCalledWith('rlnk_2');
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('outputs nothing when list is empty', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLinkList([], {});
+      expect(spy).not.toHaveBeenCalled();
     });
   });
 });

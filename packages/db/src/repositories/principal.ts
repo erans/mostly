@@ -14,6 +14,7 @@ function toEntity(row: DbRow): Principal {
     handle: row.handle,
     kind: row.kind as Principal['kind'],
     display_name: row.display_name,
+    email: row.email,
     metadata_json: row.metadata_json ? JSON.parse(row.metadata_json) : null,
     is_active: row.is_active,
     is_admin: row.is_admin,
@@ -37,6 +38,15 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       .where(and(eq(principals.workspace_id, workspaceId), eq(principals.handle, handle)))
       .all();
     return rows[0] ? toEntity(rows[0]) : null;
+  }
+
+  async findByEmail(workspaceId: string, email: string): Promise<Principal[]> {
+    const rows = await this.db
+      .select()
+      .from(principals)
+      .where(and(eq(principals.workspace_id, workspaceId), eq(principals.email, email)))
+      .all();
+    return rows.map(toEntity);
   }
 
   async list(workspaceId: string, cursor?: string, limit: number = 50): Promise<PaginatedResult<Principal>> {
@@ -82,6 +92,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       handle: data.handle,
       kind: data.kind,
       display_name: data.display_name,
+      email: data.email ?? null,
       metadata_json: metadataStr,
       password_hash: data.password_hash ?? null,
       is_active: data.is_active,
@@ -96,6 +107,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
       handle: data.handle,
       kind: data.kind as Principal['kind'],
       display_name: data.display_name,
+      email: data.email ?? null,
       metadata_json: data.metadata_json ?? null,
       is_active: data.is_active,
       is_admin: data.is_admin ?? false,
@@ -110,6 +122,7 @@ export class DrizzlePrincipalRepository implements PrincipalRepository {
 
     const updateValues: Record<string, unknown> = { updated_at: data.updated_at };
     if (data.display_name !== undefined) updateValues.display_name = data.display_name;
+    if (data.email !== undefined) updateValues.email = data.email;
     if (data.kind !== undefined) updateValues.kind = data.kind;
     if (data.metadata_json !== undefined) {
       updateValues.metadata_json = data.metadata_json ? JSON.stringify(data.metadata_json) : null;

@@ -52,6 +52,7 @@ export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
 export const InviteRequest = z.object({
   handle: z.string().min(1).max(64).regex(/^[a-z0-9_-]+$/, 'handle must be lowercase alphanumeric, hyphens, or underscores'),
   display_name: z.string().max(128).optional(),
+  email: z.string().email().nullable().optional(),
 });
 export type InviteRequest = z.infer<typeof InviteRequest>;
 

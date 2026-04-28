@@ -6,6 +6,9 @@ import {
   TaskSchema,
   TaskUpdateSchema,
   AgentActionContextSchema,
+  ProjectRepoLinkSchema,
+  CreateRepoLinkRequest,
+  GitContextResolveRequest,
 } from '../src/schemas.js';
 
 describe('entity schemas', () => {
@@ -40,6 +43,7 @@ describe('entity schemas', () => {
       handle: 'claude-code',
       kind: 'agent',
       display_name: 'Claude Code',
+      email: null,
       metadata_json: null,
       is_active: true,
       is_admin: false,
@@ -172,5 +176,112 @@ describe('entity schemas', () => {
       created_at: now,
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('ProjectRepoLinkSchema', () => {
+  it('accepts a well-formed link', () => {
+    const link = {
+      id: 'rlnk_aaaaaaaa',
+      workspace_id: 'ws_aaaaaaaa',
+      project_id: 'proj_aaaaaaaa',
+      normalized_url: 'github.com/acme/auth',
+      subpath: '',
+      created_by_id: 'prin_aaaaaaaa',
+      created_at: '2026-04-27T00:00:00.000Z',
+      updated_at: '2026-04-27T00:00:00.000Z',
+    };
+    expect(ProjectRepoLinkSchema.parse(link)).toEqual(link);
+  });
+
+  it('rejects when normalized_url contains scheme', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'https://github.com/acme/auth',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects when normalized_url starts with git@', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'git@github.com:acme/auth',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects when normalized_url has trailing slash', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'github.com/acme/auth/',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects unusual schemes like git+ssh://', () => {
+    expect(() =>
+      ProjectRepoLinkSchema.parse({
+        id: 'rlnk_x',
+        workspace_id: 'ws_x',
+        project_id: 'proj_x',
+        normalized_url: 'git+ssh://github.com/acme/auth',
+        subpath: '',
+        created_by_id: 'prin_x',
+        created_at: '2026-04-27T00:00:00.000Z',
+        updated_at: '2026-04-27T00:00:00.000Z',
+      }),
+    ).toThrow();
+  });
+});
+
+describe('CreateRepoLinkRequest', () => {
+  it('accepts subpath empty string', () => {
+    expect(
+      CreateRepoLinkRequest.parse({ normalized_url: 'github.com/acme/auth', subpath: '' }),
+    ).toEqual({ normalized_url: 'github.com/acme/auth', subpath: '' });
+  });
+});
+
+describe('GitContextResolveRequest', () => {
+  it('accepts urls and optional rel_path', () => {
+    const r = GitContextResolveRequest.parse({ urls: ['github.com/acme/auth'], rel_path: 'packages/auth' });
+    expect(r.urls).toHaveLength(1);
+    expect(r.rel_path).toBe('packages/auth');
+  });
+
+  it('defaults rel_path to empty string', () => {
+    const r = GitContextResolveRequest.parse({ urls: ['github.com/acme/auth'] });
+    expect(r.rel_path).toBe('');
+  });
+});
+
+describe('PrincipalSchema email', () => {
+  it('accepts null email', () => {
+    expect(PrincipalSchema.shape.email.parse(null)).toBeNull();
+  });
+
+  it('rejects non-email strings', () => {
+    expect(() => PrincipalSchema.shape.email.parse('not-an-email')).toThrow();
   });
 });

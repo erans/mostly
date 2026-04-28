@@ -12,6 +12,7 @@ import {
   TaskService,
   MaintenanceService,
   AuthService,
+  RepoLinkService,
 } from '@mostly/core';
 import { createApp } from '@mostly/server';
 import { configExists, getDbPath } from '../config.js';
@@ -68,6 +69,7 @@ export function serveCommand(): Command {
         repos.sessions,
         repos.apiKeys,
       );
+      const repoLinkService = new RepoLinkService(repos.projectRepoLinks, repos.projects);
 
       const app = createApp({
         workspaceId: workspace.id,
@@ -76,6 +78,7 @@ export function serveCommand(): Command {
         taskService,
         maintenanceService,
         authService,
+        repoLinkService,
       });
 
       console.log(`Mostly server starting on port ${port}...`);

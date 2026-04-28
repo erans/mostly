@@ -25,14 +25,20 @@ async function resolvePrincipal(
 export function principalRoutes(): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  // GET /v0/principals - list principals
+  // GET /v0/principals - list principals (supports ?email= filter)
   routes.get('/', async (c) => {
     const query = c.req.query();
-    const params = ListParams.parse(query);
-
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
 
+    // When ?email= is present, return a flat array of matching principals
+    // (no cursor pagination — callers use this for point-lookups).
+    if (query.email) {
+      const matches = await principalService.findByEmail(workspaceId, query.email);
+      return c.json({ data: matches });
+    }
+
+    const params = ListParams.parse(query);
     const result = await principalService.list(workspaceId, params.cursor, params.limit);
     return c.json({ data: result });
   });
@@ -51,7 +57,7 @@ export function principalRoutes(): Hono<AppEnv> {
       throw new InvalidArgumentError('Invalid request body', details);
     }
 
-    const { handle, kind, display_name, metadata_json } = parsed.data;
+    const { handle, kind, display_name, email, metadata_json } = parsed.data;
 
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
@@ -60,6 +66,7 @@ export function principalRoutes(): Hono<AppEnv> {
       handle,
       kind,
       display_name,
+      email,
       metadata_json,
     });
 
@@ -91,7 +98,7 @@ export function principalRoutes(): Hono<AppEnv> {
       throw new InvalidArgumentError('Invalid request body', details);
     }
 
-    const { display_name, kind, metadata_json, is_active } = parsed.data;
+    const { display_name, kind, email, metadata_json, is_active } = parsed.data;
 
     const principalService = c.get('principalService');
     const workspaceId = c.get('workspaceId');
@@ -100,6 +107,7 @@ export function principalRoutes(): Hono<AppEnv> {
     const principal = await principalService.update(existing.id, {
       display_name,
       kind,
+      email,
       metadata_json,
       is_active,
     });

@@ -1,6 +1,7 @@
 export { DrizzleWorkspaceRepository } from './workspace.js';
 export { DrizzlePrincipalRepository } from './principal.js';
 export { DrizzleProjectRepository } from './project.js';
+export { DrizzleProjectRepoLinkRepository } from './project-repo-link.js';
 export { DrizzleTaskRepository } from './task.js';
 export { DrizzleTaskUpdateRepository } from './task-update.js';
 export { DrizzleSessionRepository } from './session.js';
@@ -13,6 +14,7 @@ import type { MostlyDb } from '../types.js';
 import { DrizzleWorkspaceRepository } from './workspace.js';
 import { DrizzlePrincipalRepository } from './principal.js';
 import { DrizzleProjectRepository } from './project.js';
+import { DrizzleProjectRepoLinkRepository } from './project-repo-link.js';
 import { DrizzleTaskRepository } from './task.js';
 import { DrizzleTaskUpdateRepository } from './task-update.js';
 import { DrizzleSessionRepository } from './session.js';
@@ -25,6 +27,7 @@ export function createRepositories(db: MostlyDb) {
     workspaces: new DrizzleWorkspaceRepository(db),
     principals: new DrizzlePrincipalRepository(db),
     projects: new DrizzleProjectRepository(db),
+    projectRepoLinks: new DrizzleProjectRepoLinkRepository(db),
     tasks: new DrizzleTaskRepository(db),
     taskUpdates: new DrizzleTaskUpdateRepository(db),
     sessions: new DrizzleSessionRepository(db),

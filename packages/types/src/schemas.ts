@@ -20,6 +20,7 @@ export const PrincipalSchema = z.object({
   handle: z.string().min(1),
   kind: z.enum(['human', 'agent', 'service']),
   display_name: z.string().nullable(),
+  email: z.string().email().nullable(),
   metadata_json: z.record(z.unknown()).nullable(),
   is_active: z.boolean(),
   is_admin: z.boolean(),
@@ -103,3 +104,46 @@ export const AgentActionContextSchema = z.object({
   created_at: z.string(),
 });
 export type AgentActionContext = z.infer<typeof AgentActionContextSchema>;
+
+// --- ProjectRepoLink ---
+
+const NormalizedUrl = z
+  .string()
+  .min(1)
+  .refine(
+    (s) => !/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(s) && !/^[^/\s]+@/.test(s) && !s.endsWith('/'),
+    'normalized_url must be canonical: no scheme, no trailing slash, no leading user@',
+  );
+
+export const ProjectRepoLinkSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  project_id: z.string(),
+  normalized_url: NormalizedUrl,
+  subpath: z.string(),
+  created_by_id: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type ProjectRepoLink = z.infer<typeof ProjectRepoLinkSchema>;
+
+export const CreateRepoLinkRequest = z.object({
+  normalized_url: NormalizedUrl,
+  subpath: z.string().default(''),
+});
+export type CreateRepoLinkRequest = z.infer<typeof CreateRepoLinkRequest>;
+
+export const GitContextResolveRequest = z.object({
+  urls: z.array(NormalizedUrl).min(1),
+  rel_path: z.string().default(''),
+});
+export type GitContextResolveRequest = z.infer<typeof GitContextResolveRequest>;
+
+export const GitContextResolveResponse = z.object({
+  project_id: z.string(),
+  project_key: z.string(),
+  link_id: z.string(),
+  matched_url: z.string(),
+  matched_subpath: z.string(),
+});
+export type GitContextResolveResponse = z.infer<typeof GitContextResolveResponse>;

@@ -18,6 +18,7 @@ describe('db migrations', () => {
       'api_key',
       'principal',
       'project',
+      'project_repo_link',
       'session',
       'task',
       'task_key_sequence',

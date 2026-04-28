@@ -84,6 +84,59 @@ mostly task start AUTH-1
 mostly task close AUTH-1 --resolution completed
 ```
 
+### Git-aware project inference
+
+When `mostly` commands run inside a git repository that has been linked to a project, they fill in `--project`, `--task`, and `--actor` automatically. Pass `--no-git-context` on any command to skip inference for that invocation.
+
+**Linking a repo to a project**
+
+```bash
+cd path/to/your/repo
+
+mostly project link --project AUTH               # link origin to project AUTH
+mostly project link --project AUTH --all-remotes # link every remote on the repo
+mostly project link --project AUTH --subpath packages/auth  # monorepo subpath
+
+mostly project links                             # list all workspace links
+mostly project unlink --project AUTH             # remove the origin link
+```
+
+A single repo can have multiple links — one per remote or subpath. For monorepos, the longest matching subpath wins when the CLI resolves the active project.
+
+**Branch → task inference**
+
+The CLI parses the current branch for a pattern matching the linked project key. Any of these resolve to task `AUTH-1`:
+
+- `AUTH-1-add-login` — key prefix
+- `feature/AUTH-1` — slash-separated segment
+- `eran/AUTH-1-foo` — personal namespace
+
+The project key in the branch must match the linked project exactly (case-sensitive). Branches that contain a different project key are ignored — they will not cause the CLI to switch projects.
+
+**Actor inference from email**
+
+`git config user.email` is matched against principal emails in the workspace. Inactive principals are skipped. If exactly one active principal matches, that handle is used as the actor. If multiple principals share the same email, inference falls back to `default_actor` from `~/.mostly/config`.
+
+Run `mostly login` once to set your email on your principal so inference works for you.
+
+**`mostly whereami` — inference diagnostic**
+
+```
+$ mostly whereami
+cwd:        /home/eran/work/auth
+repo:       /home/eran/work/auth
+branch:     AUTH-1-add-login
+email:      eran@example.com
+remotes:
+  origin: github.com/acme/auth
+inferred:
+  project: AUTH (git:resolve)
+  task:    AUTH-1 (git:branch)
+  actor:   eran (git:email)
+```
+
+`whereami` is read-only and makes no changes.
+
 ### MCP Integration
 
 Run the MCP server for AI agent access:

@@ -34,6 +34,7 @@ describe('DrizzlePrincipalRepository', () => {
       handle: 'alice',
       kind: 'human',
       display_name: 'Alice',
+      email: null,
       metadata_json: null,
       is_active: true,
       is_admin: false,
@@ -228,5 +229,80 @@ describe('DrizzlePrincipalRepository', () => {
 
     const found = await repo.findById('01PR0001');
     expect(found!.is_active).toBe(false);
+  });
+
+  it('persists and reads email', async () => {
+    const created = await repo.create({
+      id: '01PR0010',
+      workspace_id: wsId,
+      handle: 'eran',
+      kind: 'human',
+      display_name: 'Eran',
+      email: 'eran@example.com',
+      metadata_json: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+    expect(created.email).toBe('eran@example.com');
+    const reread = await repo.findById(created.id);
+    expect(reread?.email).toBe('eran@example.com');
+  });
+
+  it('findByEmail returns all principals matching email in workspace', async () => {
+    await repo.create({
+      id: '01PR0011',
+      workspace_id: wsId,
+      handle: 'shared1',
+      kind: 'human',
+      display_name: 'Shared One',
+      email: 'shared@example.com',
+      metadata_json: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+    await repo.create({
+      id: '01PR0012',
+      workspace_id: wsId,
+      handle: 'shared2',
+      kind: 'human',
+      display_name: 'Shared Two',
+      email: 'shared@example.com',
+      metadata_json: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const matches = await repo.findByEmail(wsId, 'shared@example.com');
+    expect(matches.length).toBe(2);
+    expect(matches.every((p) => p.email === 'shared@example.com')).toBe(true);
+  });
+
+  it('findByEmail returns empty array when no match', async () => {
+    expect(await repo.findByEmail(wsId, 'nobody@example.com')).toEqual([]);
+  });
+
+  it('update patches email field', async () => {
+    await repo.create({
+      id: '01PR0013',
+      workspace_id: wsId,
+      handle: 'patchme',
+      kind: 'human',
+      display_name: null,
+      metadata_json: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const later = '2025-06-01T00:00:00.000Z';
+    const updated = await repo.update('01PR0013', {
+      email: 'patched@example.com',
+      updated_at: later,
+    });
+
+    expect(updated.email).toBe('patched@example.com');
   });
 });

@@ -8,6 +8,7 @@ import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { apiKeyCommand } from './commands/api-key.js';
 import { inviteCommand } from './commands/invite.js';
+import { whereamiCommand } from './commands/whereami.js';
 
 const program = new Command()
   .name('mostly')
@@ -23,6 +24,7 @@ program.addCommand(inviteCommand());
 program.addCommand(principalCommand());
 program.addCommand(projectCommand());
 program.addCommand(taskCommand());
+program.addCommand(whereamiCommand());
 
 program.parseAsync().catch((err) => {
   console.error(err.message);
