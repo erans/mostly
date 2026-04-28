@@ -731,6 +731,67 @@ describe('auth routes', () => {
       expect(res.status).toBe(401);
     });
 
+    it('PATCH /v0/auth/me rejects empty body', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      const res = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('invalid_argument');
+    });
+
+    it('PATCH /v0/auth/me rejects disallowed fields', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      const res = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'agent' }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('invalid_argument');
+    });
+
+    it('PATCH /v0/auth/me rejects body with only disallowed fields (strict rejects unknown keys)', async () => {
+      const { app } = createTestApp();
+
+      const regRes = await app.request('/v0/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle: 'alice', password: 'password123' }),
+      });
+      const sessionCookie = getSessionCookie(regRes);
+
+      // is_active is not in the allowed set — strict() should reject it directly
+      const res = await app.request('/v0/auth/me', {
+        method: 'PATCH',
+        headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: false }),
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error.code).toBe('invalid_argument');
+    });
+
     it('also works with API key auth', async () => {
       const { app } = createTestApp();
 
