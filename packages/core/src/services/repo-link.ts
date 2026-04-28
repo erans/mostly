@@ -67,25 +67,30 @@ export class RepoLinkService {
     matching.sort((a, b) => b.subpath.length - a.subpath.length);
     const longest = matching[0].subpath.length;
     const top = matching.filter((l) => l.subpath.length === longest);
-    const projectIds = new Set(top.map((l) => l.project_id));
+
+    // Resolve project rows for the top group; drop archived/missing.
+    const topWithProjects = await Promise.all(
+      top.map(async (link) => ({ link, project: await this.projects.findById(link.project_id) })),
+    );
+    const active = topWithProjects.filter(
+      (p): p is { link: typeof p.link; project: NonNullable<typeof p.project> } =>
+        !!p.project && !p.project.is_archived,
+    );
+    if (active.length === 0) return null;
+
+    const projectIds = new Set(active.map((a) => a.project.id));
     if (projectIds.size > 1) {
-      const projects = await Promise.all(top.map((l) => this.projects.findById(l.project_id)));
-      const labels = projects
-        .map((p, i) => `${top[i].normalized_url} → ${p?.key ?? top[i].project_id}`)
-        .join(', ');
+      const labels = active.map((a) => `${a.link.normalized_url} → ${a.project.key}`).join(', ');
       throw new InvalidArgumentError(`ambiguous git context: ${labels}. Pass --project explicitly or use --no-git-context.`);
     }
 
-    const winner = top[0];
-    const project = await this.projects.findById(winner.project_id);
-    if (!project || project.is_archived) return null;
-
+    const winner = active[0];
     return {
-      project_id: project.id,
-      project_key: project.key,
-      link_id: winner.id,
-      matched_url: winner.normalized_url,
-      matched_subpath: winner.subpath,
+      project_id: winner.project.id,
+      project_key: winner.project.key,
+      link_id: winner.link.id,
+      matched_url: winner.link.normalized_url,
+      matched_subpath: winner.link.subpath,
     };
   }
 }

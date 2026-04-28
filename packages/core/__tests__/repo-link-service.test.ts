@@ -78,6 +78,21 @@ describe('RepoLinkService.resolve', () => {
     const r = await svc2.resolve('ws_1', { urls: ['github.com/acme/auth'], rel_path: '' });
     expect(r).toBeNull();
   });
+
+  it('does not raise ambiguity when one of the candidates is archived', async () => {
+    const projects = {
+      async findById(id: string) {
+        if (id === 'proj_a') return { id: 'proj_a', key: 'PROJA', workspace_id: 'ws_1', is_archived: false } as any;
+        if (id === 'proj_b') return { id: 'proj_b', key: 'PROJB', workspace_id: 'ws_1', is_archived: true } as any;
+        return null;
+      },
+    } as any;
+    const svc2 = new RepoLinkService(repo, projects);
+    await repo.create({ id: 'a', workspace_id: 'ws_1', project_id: 'proj_a', normalized_url: 'github.com/acme/mono', subpath: '', created_by_id: 'p', created_at: 'now', updated_at: 'now' });
+    await repo.create({ id: 'b', workspace_id: 'ws_1', project_id: 'proj_b', normalized_url: 'github.com/acme/fork', subpath: '', created_by_id: 'p', created_at: 'now', updated_at: 'now' });
+    const r = await svc2.resolve('ws_1', { urls: ['github.com/acme/mono', 'github.com/acme/fork'], rel_path: '' });
+    expect(r?.project_id).toBe('proj_a');
+  });
 });
 
 describe('RepoLinkService.link', () => {
