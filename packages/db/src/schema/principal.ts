@@ -7,6 +7,7 @@ export const principals = sqliteTable('principal', {
   handle: text('handle').notNull(),
   kind: text('kind').notNull(),
   display_name: text('display_name'),
+  email: text('email'),
   metadata_json: text('metadata_json'),
   password_hash: text('password_hash'),
   is_active: integer('is_active', { mode: 'boolean' }).notNull().default(true),

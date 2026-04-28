@@ -1,0 +1,1 @@
+ALTER TABLE `principal` ADD `email` text;
