@@ -3,6 +3,7 @@ import { extractSessionCookie, defaultKeyName } from '../src/commands/login.js';
 import { deriveAcceptUrl } from '../src/commands/invite.js';
 import { projectCommand } from '../src/commands/project.js';
 import { taskCommand } from '../src/commands/task.js';
+import { whereamiCommand } from '../src/commands/whereami.js';
 
 // `os.hostname` is imported inside login.ts, so mock the module.
 vi.mock('os', async () => {
@@ -332,5 +333,27 @@ describe('task subcommands option parsing', () => {
       const hasOption = sub.options.some((o) => o.long === '--no-git-context');
       expect(hasOption).toBe(false);
     });
+  });
+});
+
+describe('whereami options', () => {
+  function parseOptions(argv: string[]): Record<string, any> {
+    const cmd = whereamiCommand();
+    cmd.parseOptions(argv);
+    return cmd.opts();
+  }
+
+  it('accepts --from, --json, --actor', () => {
+    const opts = parseOptions(['--from', '/tmp', '--json', '--actor', 'eran']);
+    expect(opts.from).toBe('/tmp');
+    expect(opts.json).toBe(true);
+    expect(opts.actor).toBe('eran');
+  });
+
+  it('all options are optional (no defaults set)', () => {
+    const opts = parseOptions([]);
+    expect(opts.from).toBeUndefined();
+    expect(opts.json).toBeUndefined();
+    expect(opts.actor).toBeUndefined();
   });
 });
