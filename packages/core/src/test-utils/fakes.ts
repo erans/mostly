@@ -97,6 +97,12 @@ export class FakePrincipalRepository implements PrincipalRepository {
     return null;
   }
 
+  async findByEmail(workspaceId: string, email: string): Promise<Principal[]> {
+    return [...this.store.values()].filter(
+      (p) => p.workspace_id === workspaceId && p.email === email,
+    );
+  }
+
   async list(workspaceId: string, cursor?: string, limit?: number): Promise<PaginatedResult<Principal>> {
     const items = [...this.store.values()].filter((p) => p.workspace_id === workspaceId);
     return paginate(items, cursor, limit);
@@ -112,7 +118,7 @@ export class FakePrincipalRepository implements PrincipalRepository {
     const { password_hash, ...rest } = data;
     const p = { ...rest, metadata_json: data.metadata_json ?? null } as Principal;
     this.store.set(p.id, p);
-    this.passwordHashes.set(p.id, password_hash);
+    this.passwordHashes.set(p.id, password_hash ?? null);
     return p;
   }
 
