@@ -3,6 +3,7 @@ import { loadConfig, requireAuth } from '../config.js';
 import { MostlyClient } from '../client.js';
 import { formatTask, formatTaskList } from '../output.js';
 import { resolveGitContext, formatInferenceNote, type GitInferenceResult } from '../git-inference.js';
+import { resolveActor } from '../resolve-actor.js';
 
 function parseTTL(ttl: string): string {
   const match = ttl.match(/^(\d+)(m|h|d)$/);
@@ -62,20 +63,17 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const project = opts.project ?? inf.projectKey;
-        const actor = opts.actor ?? inf.actorHandle ?? config.actor;
         const body: Record<string, unknown> = { title: opts.title, type: opts.type };
         if (project) body.project_id = project;
         if (opts.description) body.description = opts.description;
         if (opts.assignee) body.assignee_id = opts.assignee;
-        // Re-load config with the inferred actor if it differs from the default
-        const finalConfig = actor !== config.actor ? loadConfig({ actor }) : config;
-        const finalClient = MostlyClient.fromConfig(finalConfig);
-        const result = await finalClient.post('/v0/tasks', body);
+        const result = await client.post('/v0/tasks', body);
         formatTask(result.data, opts);
       } catch (err: any) {
         console.error(err.message);
@@ -99,10 +97,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const params: Record<string, string> = {};
         if (opts.status) params.status = opts.status;
         if (opts.assignee) params.assignee_id = opts.assignee;
@@ -129,10 +128,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const result = await client.get(`/v0/tasks/${taskId}`);
         formatTask(result.data, opts);
@@ -186,10 +186,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const body: Record<string, unknown> = { expected_version: task.version };
@@ -213,10 +214,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const body: Record<string, unknown> = { expected_version: task.version };
@@ -239,10 +241,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const result = await client.post(`/v0/tasks/${taskId}/release-claim`, {
@@ -265,10 +268,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const result = await client.post(`/v0/tasks/${taskId}/transition`, {
@@ -293,10 +297,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const result = await client.post(`/v0/tasks/${taskId}/transition`, {
@@ -327,10 +332,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const body: Record<string, unknown> = {
@@ -357,10 +363,11 @@ export function taskCommand(): Command {
     .option('--actor <actor>', 'Actor handle override')
     .action(async (id, opts) => {
       try {
-        const config = loadConfig({ actor: opts.actor });
-        requireAuth(config);
-        const client = MostlyClient.fromConfig(config);
-        const inf = await inferContext({ client, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const baseConfig = loadConfig({ actor: opts.actor });
+        requireAuth(baseConfig);
+        const baseClient = MostlyClient.fromConfig(baseConfig);
+        const inf = await inferContext({ client: baseClient, noGitContext: !opts.gitContext, json: opts.json, quiet: opts.quiet });
+        const { client } = resolveActor(opts, inf, baseConfig);
         const taskId = requireTaskKey(id, inf);
         const { data: task } = await client.get(`/v0/tasks/${taskId}`);
         const body: Record<string, unknown> = {
