@@ -70,4 +70,22 @@ describe('PrincipalService', () => {
       expect(updated.display_name).toBe('Eran S');
     });
   });
+
+  describe('findByEmail', () => {
+    it('findByEmail returns matching principals', async () => {
+      const fake = new FakePrincipalRepository();
+      await fake.create({ id: 'p1', workspace_id: 'ws_1', handle: 'alice', kind: 'human', display_name: null, email: 'shared@example.com', metadata_json: null, password_hash: null, is_active: true, is_admin: false, created_at: 't', updated_at: 't' });
+      await fake.create({ id: 'p2', workspace_id: 'ws_1', handle: 'bob', kind: 'human', display_name: null, email: 'shared@example.com', metadata_json: null, password_hash: null, is_active: true, is_admin: false, created_at: 't', updated_at: 't' });
+      await fake.create({ id: 'p3', workspace_id: 'ws_1', handle: 'carol', kind: 'human', display_name: null, email: 'other@example.com', metadata_json: null, password_hash: null, is_active: true, is_admin: false, created_at: 't', updated_at: 't' });
+      const svc = new PrincipalService(fake);
+      const matches = await svc.findByEmail('ws_1', 'shared@example.com');
+      expect(matches).toHaveLength(2);
+    });
+
+    it('findByEmail returns empty when none match', async () => {
+      const fake = new FakePrincipalRepository();
+      const svc = new PrincipalService(fake);
+      expect(await svc.findByEmail('ws_1', 'nobody@example.com')).toEqual([]);
+    });
+  });
 });

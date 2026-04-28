@@ -57,4 +57,8 @@ export class PrincipalService {
       updated_at: new Date().toISOString(),
     });
   }
+
+  async findByEmail(workspaceId: string, email: string): Promise<Principal[]> {
+    return this.principals.findByEmail(workspaceId, email);
+  }
 }
