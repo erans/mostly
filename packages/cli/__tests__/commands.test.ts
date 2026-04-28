@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractSessionCookie, defaultKeyName } from '../src/commands/login.js';
 import { deriveAcceptUrl } from '../src/commands/invite.js';
 import { projectCommand } from '../src/commands/project.js';
+import { taskCommand } from '../src/commands/task.js';
 
 // `os.hostname` is imported inside login.ts, so mock the module.
 vi.mock('os', async () => {
@@ -230,6 +231,106 @@ describe('project subcommands option parsing', () => {
     it('parses --quiet', () => {
       const opts = parseProjectSubcommandOpts('links', ['--quiet']);
       expect(opts.quiet).toBe(true);
+    });
+  });
+});
+
+describe('task subcommands option parsing', () => {
+  /**
+   * Helper: find a registered subcommand on the task command by name,
+   * and return its parsed opts object without triggering the action handler.
+   */
+  function parseTaskSubcommandOpts(subName: string, argv: string[]): Record<string, any> {
+    const cmd = taskCommand();
+    const sub = cmd.commands.find((c) => c.name() === subName);
+    if (!sub) throw new Error(`subcommand "${subName}" not found`);
+    sub.parseOptions(argv);
+    return sub.opts();
+  }
+
+  const subcommandsWithNoGitContext = [
+    'create',
+    'list',
+    'show',
+    'claim',
+    'renew-claim',
+    'release-claim',
+    'start',
+    'block',
+    'close',
+    'cancel',
+  ];
+
+  for (const name of subcommandsWithNoGitContext) {
+    describe(`task ${name}`, () => {
+      it('accepts --no-git-context (Commander sets gitContext=false)', () => {
+        const opts = parseTaskSubcommandOpts(name, ['--no-git-context']);
+        // Commander.js maps --no-git-context to opts.gitContext === false
+        expect(opts.gitContext).toBe(false);
+      });
+
+      it('gitContext defaults to true when --no-git-context is absent', () => {
+        const opts = parseTaskSubcommandOpts(name, []);
+        expect(opts.gitContext).toBe(true);
+      });
+    });
+  }
+
+  describe('task create', () => {
+    it('parses --project', () => {
+      const opts = parseTaskSubcommandOpts('create', ['--title', 'T', '--type', 'chore', '--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('project is optional (undefined when absent)', () => {
+      const opts = parseTaskSubcommandOpts('create', ['--title', 'T', '--type', 'chore']);
+      expect(opts.project).toBeUndefined();
+    });
+  });
+
+  describe('task list', () => {
+    it('parses --project', () => {
+      const opts = parseTaskSubcommandOpts('list', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('project is optional (undefined when absent)', () => {
+      const opts = parseTaskSubcommandOpts('list', []);
+      expect(opts.project).toBeUndefined();
+    });
+  });
+
+  describe('task show', () => {
+    it('has no required positional (id is optional)', () => {
+      // Should parse without error when no positional is provided
+      expect(() => parseTaskSubcommandOpts('show', [])).not.toThrow();
+    });
+  });
+
+  describe('task add-update', () => {
+    it('does NOT have --no-git-context (positional id is required)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'add-update')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
+    });
+  });
+
+  describe('task reap-expired', () => {
+    it('does NOT have --no-git-context (maintenance command)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'reap-expired')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
+    });
+  });
+
+  describe('task edit', () => {
+    it('does NOT have --no-git-context (always requires explicit id)', () => {
+      const cmd = taskCommand();
+      const sub = cmd.commands.find((c) => c.name() === 'edit')!;
+      const hasOption = sub.options.some((o) => o.long === '--no-git-context');
+      expect(hasOption).toBe(false);
     });
   });
 });
