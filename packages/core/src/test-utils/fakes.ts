@@ -115,10 +115,21 @@ export class FakePrincipalRepository implements PrincipalRepository {
   }
 
   async create(data: PrincipalCreateData): Promise<Principal> {
-    const { password_hash, ...rest } = data;
-    const p = { ...rest, metadata_json: data.metadata_json ?? null } as Principal;
+    const p: Principal = {
+      id: data.id,
+      workspace_id: data.workspace_id,
+      handle: data.handle,
+      kind: data.kind as Principal['kind'],
+      display_name: data.display_name,
+      email: data.email ?? null,
+      metadata_json: data.metadata_json ?? null,
+      is_active: data.is_active,
+      is_admin: data.is_admin ?? false,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
     this.store.set(p.id, p);
-    this.passwordHashes.set(p.id, password_hash ?? null);
+    this.passwordHashes.set(p.id, data.password_hash ?? null);
     return p;
   }
 

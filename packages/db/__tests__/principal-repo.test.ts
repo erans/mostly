@@ -276,7 +276,7 @@ describe('DrizzlePrincipalRepository', () => {
     });
 
     const matches = await repo.findByEmail(wsId, 'shared@example.com');
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    expect(matches.length).toBe(2);
     expect(matches.every((p) => p.email === 'shared@example.com')).toBe(true);
   });
 
