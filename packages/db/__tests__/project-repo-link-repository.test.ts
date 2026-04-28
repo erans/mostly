@@ -7,6 +7,7 @@ import { DrizzleProjectRepoLinkRepository } from '../src/repositories/project-re
 
 describe('DrizzleProjectRepoLinkRepository', () => {
   let repo: DrizzleProjectRepoLinkRepository;
+  let db: ReturnType<typeof createTestDb>;
   const wsId = '01WS0001';
   const ws2Id = '01WS0002';
   const actorId = '01PR0001';
@@ -15,7 +16,7 @@ describe('DrizzleProjectRepoLinkRepository', () => {
   const now = '2025-01-01T00:00:00.000Z';
 
   beforeEach(async () => {
-    const db = createTestDb();
+    db = createTestDb();
 
     const wsRepo = new DrizzleWorkspaceRepository(db);
     await wsRepo.create({ id: wsId, slug: 'default', name: 'Default', created_at: now, updated_at: now });
@@ -297,31 +298,70 @@ describe('DrizzleProjectRepoLinkRepository', () => {
   });
 
   it('allows same url in different workspaces', async () => {
-    // ws2Id has no projects/principals; we only need workspace to exist for FK
-    // This test is purely about the unique constraint scoping to workspace_id
-    // We cannot create a link in ws2Id without a project + principal there,
-    // so we test the inverse: two different subpaths in the same workspace are OK.
-    await repo.create({
+    // Create a principal and project in ws2 so FK constraints are satisfied.
+    const actor2Id = '01PR0002';
+    const proj3Id = '01PJ0003';
+
+    const prRepo = new DrizzlePrincipalRepository(db);
+    await prRepo.create({
+      id: actor2Id,
+      workspace_id: ws2Id,
+      handle: 'bob',
+      kind: 'human',
+      display_name: null,
+      email: null,
+      metadata_json: null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const projRepo = new DrizzleProjectRepository(db);
+    await projRepo.create({
+      id: proj3Id,
+      workspace_id: ws2Id,
+      key: 'GAMMA',
+      name: 'Gamma',
+      description: null,
+      is_archived: false,
+      created_by_id: actor2Id,
+      updated_by_id: actor2Id,
+      created_at: now,
+      updated_at: now,
+    });
+
+    // Insert the same (normalized_url, subpath) in ws1 and ws2 — must both succeed.
+    const link1 = await repo.create({
       id: 'rlnk_0000001',
       workspace_id: wsId,
       project_id: projId,
-      normalized_url: 'github.com/acme/mono',
-      subpath: 'services/auth',
+      normalized_url: 'github.com/acme/auth',
+      subpath: '',
       created_by_id: actorId,
       created_at: now,
       updated_at: now,
     });
-    await expect(
-      repo.create({
-        id: 'rlnk_0000002',
-        workspace_id: wsId,
-        project_id: proj2Id,
-        normalized_url: 'github.com/acme/mono',
-        subpath: 'services/billing',
-        created_by_id: actorId,
-        created_at: now,
-        updated_at: now,
-      }),
-    ).resolves.not.toThrow();
+    const link2 = await repo.create({
+      id: 'rlnk_0000002',
+      workspace_id: ws2Id,
+      project_id: proj3Id,
+      normalized_url: 'github.com/acme/auth',
+      subpath: '',
+      created_by_id: actor2Id,
+      created_at: now,
+      updated_at: now,
+    });
+
+    expect(link1.id).toBe('rlnk_0000001');
+    expect(link2.id).toBe('rlnk_0000002');
+
+    // findByUrls must be workspace-scoped: ws1 returns only link1, ws2 only link2.
+    const ws1Links = await repo.findByUrls(wsId, ['github.com/acme/auth']);
+    expect(ws1Links).toHaveLength(1);
+    expect(ws1Links[0].id).toBe('rlnk_0000001');
+
+    const ws2Links = await repo.findByUrls(ws2Id, ['github.com/acme/auth']);
+    expect(ws2Links).toHaveLength(1);
+    expect(ws2Links[0].id).toBe('rlnk_0000002');
   });
 });
