@@ -7,3 +7,4 @@ export { agentActionContexts } from './agent-action-context';
 export { taskKeySequences } from './task-key-sequence';
 export { sessions } from './session';
 export { apiKeys } from './api-key';
+export { projectRepoLinks } from './project-repo-link';
