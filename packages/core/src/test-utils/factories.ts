@@ -17,7 +17,7 @@ export function makePrincipal(overrides: Partial<Principal> = {}): Principal {
   const ts = now();
   return {
     id: generateId(ID_PREFIXES.principal), workspace_id: generateId(ID_PREFIXES.workspace), handle: 'test-user', kind: 'human',
-    display_name: null, metadata_json: null, is_active: true, is_admin: false,
+    display_name: null, email: null, metadata_json: null, is_active: true, is_admin: false,
     created_at: ts, updated_at: ts,
     ...overrides,
   };

@@ -7,6 +7,7 @@ export const ID_PREFIXES = {
   task: 'tsk',
   taskUpdate: 'upd',
   apiKey: 'key',
+  repoLink: 'rlnk',
 } as const;
 
 export type IdPrefix = (typeof ID_PREFIXES)[keyof typeof ID_PREFIXES];
