@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractSessionCookie, defaultKeyName } from '../src/commands/login.js';
 import { deriveAcceptUrl } from '../src/commands/invite.js';
+import { projectCommand } from '../src/commands/project.js';
 
 // `os.hostname` is imported inside login.ts, so mock the module.
 vi.mock('os', async () => {
@@ -114,6 +115,121 @@ describe('invite helpers', () => {
 
     it('falls back for a non-URL string', () => {
       expect(deriveAcceptUrl('not a url', 'tok')).toBe('not a url/invite/tok');
+    });
+  });
+});
+
+describe('project subcommands option parsing', () => {
+  /**
+   * Helper: find a registered subcommand on the project command by name,
+   * and return its parsed opts object without triggering the action handler.
+   *
+   * We use Commander's parseOptions() which fills opts but does NOT fire
+   * the action callback — safe for unit tests that just want to verify
+   * option definitions and defaults.
+   */
+  function parseProjectSubcommandOpts(subName: string, argv: string[]): Record<string, any> {
+    const cmd = projectCommand();
+    const sub = cmd.commands.find((c) => c.name() === subName);
+    if (!sub) throw new Error(`subcommand "${subName}" not found`);
+    // setOptionValueWithSource handles defaults; parseOptions fills from argv.
+    sub.parseOptions(argv);
+    return sub.opts();
+  }
+
+  describe('project link', () => {
+    it('has correct defaults', () => {
+      const opts = parseProjectSubcommandOpts('link', []);
+      expect(opts.remote).toBe('origin');
+      expect(opts.subpath).toBe('');
+      expect(opts.allRemotes).toBeUndefined();
+      expect(opts.project).toBeUndefined();
+    });
+
+    it('parses --project and --remote', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--project', 'AUTH', '--remote', 'upstream']);
+      expect(opts.project).toBe('AUTH');
+      expect(opts.remote).toBe('upstream');
+    });
+
+    it('parses --all-remotes as allRemotes', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--all-remotes']);
+      expect(opts.allRemotes).toBe(true);
+    });
+
+    it('parses --subpath', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--subpath', 'packages/auth']);
+      expect(opts.subpath).toBe('packages/auth');
+    });
+
+    it('parses --from', () => {
+      const opts = parseProjectSubcommandOpts('link', ['--from', '/tmp/myrepo']);
+      expect(opts.from).toBe('/tmp/myrepo');
+    });
+
+    it('parses --json and --quiet', () => {
+      const optsJson = parseProjectSubcommandOpts('link', ['--json']);
+      expect(optsJson.json).toBe(true);
+      const optsQuiet = parseProjectSubcommandOpts('link', ['--quiet']);
+      expect(optsQuiet.quiet).toBe(true);
+    });
+  });
+
+  describe('project unlink', () => {
+    it('has correct defaults', () => {
+      const opts = parseProjectSubcommandOpts('unlink', []);
+      expect(opts.remote).toBe('origin');
+      expect(opts.subpath).toBe('');
+      expect(opts.all).toBeUndefined();
+    });
+
+    it('parses --project', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('parses --all', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH', '--all']);
+      expect(opts.all).toBe(true);
+    });
+
+    it('parses --from', () => {
+      const opts = parseProjectSubcommandOpts('unlink', ['--project', 'AUTH', '--from', '/repo']);
+      expect(opts.from).toBe('/repo');
+    });
+
+    it('parses --remote and --subpath', () => {
+      const opts = parseProjectSubcommandOpts('unlink', [
+        '--project', 'AUTH',
+        '--remote', 'upstream',
+        '--subpath', 'packages/auth',
+      ]);
+      expect(opts.remote).toBe('upstream');
+      expect(opts.subpath).toBe('packages/auth');
+    });
+  });
+
+  describe('project links', () => {
+    it('has no required options (all optional)', () => {
+      const opts = parseProjectSubcommandOpts('links', []);
+      expect(opts.project).toBeUndefined();
+      expect(opts.json).toBeUndefined();
+      expect(opts.quiet).toBeUndefined();
+    });
+
+    it('parses --project', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--project', 'AUTH']);
+      expect(opts.project).toBe('AUTH');
+    });
+
+    it('parses --json', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--json']);
+      expect(opts.json).toBe(true);
+    });
+
+    it('parses --quiet', () => {
+      const opts = parseProjectSubcommandOpts('links', ['--quiet']);
+      expect(opts.quiet).toBe(true);
     });
   });
 });
