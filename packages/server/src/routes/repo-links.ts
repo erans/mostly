@@ -58,8 +58,14 @@ export function repoLinkRoutes(): Hono<AppEnv> {
   // DELETE /v0/projects/:id/repo-links/:linkId
   routes.delete('/projects/:id/repo-links/:linkId', async (c) => {
     const ws = c.get('workspaceId');
+    const projectService = c.get('projectService');
+    const project = await resolveProject(projectService, ws, c.req.param('id'));
     const svc = c.get('repoLinkService');
-    await svc.unlink(ws, c.req.param('linkId'));
+    const link = await svc.findById(ws, c.req.param('linkId'));
+    if (!link || link.project_id !== project.id) {
+      throw new NotFoundError('repoLink', c.req.param('linkId'));
+    }
+    await svc.unlink(ws, link.id);
     return c.body(null, 204);
   });
 

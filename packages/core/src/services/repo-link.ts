@@ -43,6 +43,12 @@ export class RepoLinkService {
     });
   }
 
+  async findById(workspaceId: string, linkId: string): Promise<ProjectRepoLink | null> {
+    const link = await this.links.findById(linkId);
+    if (!link || link.workspace_id !== workspaceId) return null;
+    return link;
+  }
+
   async unlink(workspaceId: string, linkId: string): Promise<void> {
     const link = await this.links.findById(linkId);
     if (!link || link.workspace_id !== workspaceId) {

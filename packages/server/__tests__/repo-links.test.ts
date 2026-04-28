@@ -155,4 +155,44 @@ describe('Repo Link Routes', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('DELETE /v0/projects/:id/repo-links/:linkId', () => {
+    it('returns 404 when DELETE references a link that belongs to a different project', async () => {
+      const projA = await createProject('RLDELA', 'Delete Auth Project A');
+      const projB = await createProject('RLDELB', 'Delete Auth Project B');
+
+      // Create a link on project A
+      const postRes = await postRepoLink(projA.id, 'github.com/acme/del-auth');
+      expect(postRes.status).toBe(200);
+      const linkId = (await postRes.json()).data.id;
+
+      // Attempt to DELETE via project B's path — should be 404
+      const delRes = await env.app.request(`/v0/projects/${projB.id}/repo-links/${linkId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${env.testAgentToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor_id: env.testPrincipalId }),
+      });
+      expect(delRes.status).toBe(404);
+
+      // Link should still exist under project A
+      const getRes = await env.app.request(`/v0/projects/${projA.id}/repo-links`, {
+        headers: { Authorization: `Bearer ${env.testAgentToken}` },
+      });
+      expect(getRes.status).toBe(200);
+      const getBody = await getRes.json();
+      expect(getBody.data.map((l: any) => l.id)).toContain(linkId);
+    });
+
+    it('returns 404 when DELETE references a non-existent link', async () => {
+      const project = await createProject('RLDELNE', 'Delete Non-Existent Link');
+      const fakeId = 'rl_nonexistent000000000000';
+
+      const delRes = await env.app.request(`/v0/projects/${project.id}/repo-links/${fakeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${env.testAgentToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actor_id: env.testPrincipalId }),
+      });
+      expect(delRes.status).toBe(404);
+    });
+  });
 });
