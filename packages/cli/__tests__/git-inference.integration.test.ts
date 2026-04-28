@@ -26,7 +26,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
@@ -92,7 +92,7 @@ function withTempGitRepo(opts: TempRepoOpts): { dir: string; cleanup: () => void
   writeFileSync(path.join(dir, '.gitkeep'), '');
   sh('add', '.gitkeep');
   sh('commit', '-q', '-m', 'init');
-  if (opts.branch) sh('checkout', '-q', '-b', opts.branch);
+  if (opts.branch) sh('checkout', '-q', '-B', opts.branch);
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
@@ -232,7 +232,7 @@ describe.skipIf(!GIT_AVAILABLE)('git-inference integration', () => {
       await createLink(projAuth.id, 'github.com/acme/monorepo-it', 'packages/auth');
 
       // Create the subpath directory so gatherGitContext can compute relPath
-      execFileSync('mkdir', ['-p', path.join(dir, 'packages', 'auth', 'src')]);
+      mkdirSync(path.join(dir, 'packages', 'auth', 'src'), { recursive: true });
 
       const cwd = path.join(dir, 'packages', 'auth', 'src');
       const result = await resolveGitContext({ cwd, client, disabled: false });
@@ -261,9 +261,13 @@ describe.skipIf(!GIT_AVAILABLE)('git-inference integration', () => {
       await createLink(projA.id, 'github.com/acme/ambig-a');
       await createLink(projB.id, 'github.com/acme/ambig-b');
 
-      await expect(
-        resolveGitContext({ cwd: dir, client, disabled: false }),
-      ).rejects.toThrow();
+      let err: any;
+      try {
+        await resolveGitContext({ cwd: dir, client, disabled: false });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      expect(err.status).toBe(400);
+      expect(String(err.message ?? '').toLowerCase()).toContain('ambiguous');
     } finally {
       cleanup();
     }
