@@ -34,6 +34,7 @@ describe('DrizzlePrincipalRepository', () => {
       handle: 'alice',
       kind: 'human',
       display_name: 'Alice',
+      email: null,
       metadata_json: null,
       is_active: true,
       is_admin: false,
