@@ -27,4 +27,21 @@ describe('normalizeGitUrl', () => {
   it('rejects non-url-shaped strings', () => {
     expect(() => normalizeGitUrl('not a url')).toThrow();
   });
+
+  it('rejects file:// urls', () => {
+    expect(() => normalizeGitUrl('file:///acme/auth.git')).toThrow();
+  });
+
+  it('rejects ftp:// urls', () => {
+    expect(() => normalizeGitUrl('ftp://github.com/acme/auth')).toThrow();
+  });
+
+  it('rejects mailto: urls', () => {
+    expect(() => normalizeGitUrl('mailto:user@example.com')).toThrow();
+  });
+
+  it('rejects URLs with empty host', () => {
+    // After URL parsing, http:///acme/auth has no host
+    expect(() => normalizeGitUrl('http:///acme/auth')).toThrow();
+  });
 });

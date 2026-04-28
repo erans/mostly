@@ -8,9 +8,17 @@ export function normalizeGitUrl(input: string): string {
   if (!input) throw new Error('empty git url');
   let s = input.trim();
 
+  // Reject empty-authority URLs like http:///path (triple-slash = no host).
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/\//.test(s)) {
+    throw new Error(`git url missing host: ${input}`);
+  }
+
   // SCP-style: git@host:owner/repo[.git]
+  // Only apply when there is no URL scheme already present (scheme = word chars before
+  // the first colon, with no '@' sign before that colon).
   const scpMatch = s.match(/^([^@\s]+@)?([^:/\s]+):(.+)$/);
-  if (scpMatch && !s.includes('://')) {
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s) && !s.slice(0, s.indexOf(':')).includes('@');
+  if (scpMatch && !hasScheme) {
     s = `ssh://${scpMatch[1] ?? ''}${scpMatch[2]}/${scpMatch[3]}`;
   }
 
@@ -19,6 +27,15 @@ export function normalizeGitUrl(input: string): string {
     url = new URL(s);
   } catch {
     throw new Error(`unrecognized git url: ${input}`);
+  }
+
+  const allowedSchemes = ['http:', 'https:', 'ssh:'];
+  if (!allowedSchemes.includes(url.protocol)) {
+    throw new Error(`unsupported git url scheme: ${input}`);
+  }
+
+  if (url.hostname === '') {
+    throw new Error(`git url missing host: ${input}`);
   }
 
   let host = url.hostname.toLowerCase();
