@@ -1,9 +1,11 @@
-import { NavLink, useLocation, useNavigate } from 'react-router';
-import { ListTodo, List, FolderOpen, Settings, Clock, Ban, Search, Plus, LogOut, Key } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router';
+import { ListTodo, List, FolderOpen, Settings, Clock, Ban, Search, Plus, User } from 'lucide-react';
+import { useState } from 'react';
 import { useProjects } from '@/hooks/use-projects';
-import { useTheme } from '@/hooks/use-theme';
-import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
+import { ProjectForm } from './project-form';
+import { SettingsDialog } from './settings-dialog';
+import { UserDialog } from './user-dialog';
 
 interface SidebarProps {
   expanded: boolean;
@@ -15,17 +17,10 @@ const PROJECT_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '
 
 export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) {
   const { data: projects } = useProjects();
-  const { toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
-
-  async function handleLogout() {
-    // Clear the local session and navigate even if the server call fails —
-    // useAuth().logout already catches server errors for exactly this reason.
-    await logout();
-    navigate('/login', { replace: true });
-  }
+  const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
 
   const navLinkClass = (isActive: boolean) =>
     cn(
@@ -34,6 +29,7 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
     );
 
   return (
+    <>
     <aside className="flex h-full shrink-0">
       {/* Icon rail */}
       <div className="flex w-11 flex-col items-center gap-1.5 border-r border-border bg-sidebar px-1 py-3">
@@ -54,8 +50,11 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
           <FolderOpen size={15} className="text-text-secondary" />
         </NavLink>
         <div className="flex-1" />
-        <button onClick={toggleTheme} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-border/30">
+        <button onClick={() => setSettingsOpen(true)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-border/30">
           <Settings size={15} className="text-text-secondary" />
+        </button>
+        <button onClick={() => setUserDialogOpen(true)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-border/30">
+          <User size={15} className="text-text-secondary" />
         </button>
       </div>
 
@@ -87,7 +86,7 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
           {/* Projects */}
           <div className="mb-1 flex items-center justify-between px-2">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Projects</span>
-            <Plus size={12} className="cursor-pointer text-text-muted opacity-40 hover:opacity-100" />
+            <Plus size={12} className="cursor-pointer text-text-muted opacity-40 hover:opacity-100" onClick={() => setProjectFormOpen(true)} />
           </div>
           {projects?.map((p, i) => (
             <NavLink
@@ -117,51 +116,12 @@ export function Sidebar({ expanded, onToggle, onCommandPalette }: SidebarProps) 
             <Clock size={14} className="shrink-0" />
             <span>Active Claims</span>
           </NavLink>
-
-          {/* Current user */}
-          <div className="mt-auto flex items-center gap-2 border-t border-border px-2 pt-3">
-            <div
-              aria-hidden="true"
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-border/50 text-[10px] font-semibold text-text-secondary"
-            >
-              {user?.handle ? user.handle.charAt(0).toUpperCase() : '?'}
-            </div>
-            <div className="min-w-0 flex-1">
-              {user?.display_name ? (
-                <>
-                  <div className="truncate text-xs font-medium text-text">{user.display_name}</div>
-                  <div className="truncate text-[10px] text-text-muted">{user.handle}</div>
-                </>
-              ) : (
-                // Defensive fallback: Sidebar is only mounted under RequireAuth,
-                // so `user` should always be present. The `—` covers edge cases
-                // like a logout that navigates before the next render.
-                <div className="truncate text-xs text-text-secondary">{user?.handle ?? '—'}</div>
-              )}
-            </div>
-            <NavLink
-              to="/settings/api-keys"
-              aria-label="API keys"
-              className={({ isActive }) =>
-                cn(
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
-                  isActive ? 'bg-border/60' : 'hover:bg-border/30',
-                )
-              }
-            >
-              <Key size={14} className="text-text-secondary" />
-            </NavLink>
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Log out"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-border/30"
-            >
-              <LogOut size={14} className="text-text-secondary hover:text-text" />
-            </button>
-          </div>
         </div>
       )}
     </aside>
+    {projectFormOpen && <ProjectForm onClose={() => setProjectFormOpen(false)} />}
+    {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+    {userDialogOpen && <UserDialog onClose={() => setUserDialogOpen(false)} />}
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { Sidebar } from './sidebar';
+import { useResizable } from '@/hooks/use-resizable';
 
 interface LayoutProps {
   children: ReactNode;
@@ -27,6 +28,12 @@ export function Layout({ children, detail, onCommandPalette, onCloseDetail }: La
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const bp = useBreakpoint();
+  const { width: detailWidth, handleMouseDown } = useResizable({
+    storageKey: 'mostly-detail-width',
+    defaultWidth: 380,
+    minWidth: 280,
+    maxWidth: 700,
+  });
 
   // Auto-collapse sidebar on tablet
   const showExpandedSidebar = bp === 'desktop' ? sidebarExpanded : false;
@@ -78,7 +85,11 @@ export function Layout({ children, detail, onCommandPalette, onCloseDetail }: La
       <main className="flex min-w-0 flex-1">
         <div className="flex-1 overflow-y-auto">{children}</div>
         {showDetail && (
-          <div className="w-[380px] shrink-0 overflow-y-auto border-l border-border bg-surface">
+          <div className="relative shrink-0 overflow-y-auto border-l border-border bg-surface" style={{ width: detailWidth }}>
+            <div
+              onMouseDown={handleMouseDown}
+              className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-accent/30 active:bg-accent/50"
+            />
             {detail}
           </div>
         )}

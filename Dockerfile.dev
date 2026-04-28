@@ -1,0 +1,37 @@
+FROM node:20-slim AS builder
+
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
+COPY packages/ packages/
+COPY docker/ docker/
+RUN pnpm install --frozen-lockfile
+
+# Build all packages (types → core → db → server, web)
+RUN pnpm build
+
+# Rebuild web with VITE_SINGLE_ORIGIN so it uses window.location.origin
+RUN cd packages/web && VITE_SINGLE_ORIGIN=true npx vite build
+
+# Copy web dist into server/public so Hono serves it
+RUN rm -rf packages/server/public && cp -r packages/web/dist packages/server/public
+
+# Compile the seed script (mark workspace packages as external — they're already built)
+RUN npx tsup docker/seed.ts --format esm --target es2022 --out-dir packages/server/dist --no-dts --no-sourcemap \
+    --external @mostly/db --external @mostly/core --external @mostly/types
+
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y curl python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+COPY --from=builder /app ./
+
+COPY docker/entrypoint.sh /app/docker/entrypoint.sh
+RUN chmod +x /app/docker/entrypoint.sh
+
+EXPOSE 6080
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

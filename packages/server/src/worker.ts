@@ -18,7 +18,7 @@ type D1Arg = Parameters<typeof createD1Db>[0];
  * glob or the runtime evaluates it inconsistently).
  */
 export function shouldFallThroughToAssets(response: Response, url: URL): boolean {
-  return response.status === 404 && !url.pathname.startsWith('/v0/');
+  return response.status === 404 && url.pathname !== '/v0' && !url.pathname.startsWith('/v0/');
 }
 
 export default {

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
 import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256 } from '@mostly/core';
 import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
@@ -51,6 +52,8 @@ function loadConfig(): MostlyConfig {
 
   return { port, server_url: fileConfig.server_url, agent_token: fileConfig.agent_token };
 }
+
+import { isSpaFallbackPath } from './spa-fallback.js';
 
 async function main() {
   const config = loadConfig();
@@ -158,6 +161,24 @@ async function main() {
     maintenanceService,
     authService,
   });
+
+  // Serve pre-built web UI from public/ if it exists (Docker builds copy it there)
+  const publicDir = join(__dirname, '..', 'public');
+  if (existsSync(publicDir)) {
+    // Only serve static files for GET/HEAD requests
+    app.use('*', async (c, next) => {
+      if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return next();
+      return serveStatic({ root: publicDir })(c, next);
+    });
+    // SPA fallback: non-API GET/HEAD requests that didn't match a static file get index.html
+    app.use('*', async (c, next) => {
+      if (!isSpaFallbackPath(c.req.method, c.req.path)) {
+        return next();
+      }
+      return serveStatic({ root: publicDir, path: 'index.html' })(c, next);
+    });
+    console.log(`Serving web UI from ${publicDir}`);
+  }
 
   console.log(`Mostly server starting on port ${port}...`);
   serve({
