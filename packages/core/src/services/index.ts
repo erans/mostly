@@ -6,3 +6,5 @@ export { TaskService } from './task.js';
 export type { CreateTaskInput, PatchTaskInput } from './task.js';
 export { MaintenanceService } from './maintenance.js';
 export { AuthService } from './auth.js';
+export { RepoLinkService } from './repo-link.js';
+export type { LinkInput, ResolveInput } from './repo-link.js';
