@@ -279,18 +279,14 @@ describe.skipIf(!GIT_AVAILABLE)('E2E: git-aware project inference golden path', 
     // Step 5: POST /v0/tasks using the inferred project_id; assert task
     //         lands in project DEMO.
     // ------------------------------------------------------------------
-    const taskRes = await app.request('/v0/tasks', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        title: 'Inferred task',
-        type: 'chore',
-        project_id: inf.projectId ?? project.id,
-        actor_id: TEST_PRINCIPAL_ID,
-      }),
+    expect(inf.projectId).toBeDefined();
+    expect(inf.projectId).toBe(project.id);
+    const taskRes = await client.post('/v0/tasks', {
+      title: 'Hello from git inference',
+      type: 'chore',
+      project_id: inf.projectId,
     });
-    expect(taskRes.status, 'create task should succeed').toBe(200);
-    const task = (await taskRes.json() as any).data;
+    const task = taskRes.data;
     expect(task.project_id, 'task should belong to project DEMO').toBe(project.id);
     // The key should be DEMO-N (first task in the project → DEMO-1)
     expect(task.key, 'task key should be in DEMO project').toMatch(/^DEMO-\d+$/);
