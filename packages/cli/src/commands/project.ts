@@ -3,6 +3,7 @@ import { loadConfig, requireAuth } from '../config.js';
 import { MostlyClient } from '../client.js';
 import { gatherGitContext, RealGitRunner } from '@mostly/core';
 import { formatProject, formatProjectList, formatRepoLink, formatRepoLinkList } from '../output.js';
+import { canonSubpath } from '../canon-subpath.js';
 
 export function projectCommand(): Command {
   const cmd = new Command('project').description('Manage projects');
@@ -112,18 +113,27 @@ export function projectCommand(): Command {
           process.exit(1);
         }
         const client = MostlyClient.fromConfig(config);
+        const subpath = canonSubpath(opts.subpath);
         let anyError = false;
+        const jsonResults: any[] = [];
         for (const t of targets) {
           try {
             const result = await client.post(`/v0/projects/${opts.project}/repo-links`, {
               normalized_url: t.normalized_url,
-              subpath: opts.subpath ?? '',
+              subpath,
             });
-            formatRepoLink(result.data, opts);
+            if (opts.json) {
+              jsonResults.push(result.data);
+            } else {
+              formatRepoLink(result.data, opts);
+            }
           } catch (err: any) {
             console.error(`cannot link ${t.normalized_url}: ${err.message}`);
             anyError = true;
           }
+        }
+        if (opts.json) {
+          console.log(JSON.stringify(jsonResults));
         }
         if (anyError) process.exitCode = 1;
       } catch (err: any) {
@@ -166,7 +176,7 @@ export function projectCommand(): Command {
             process.exit(1);
           }
           toDelete = links.filter(
-            (l) => l.normalized_url === remote.normalized_url && l.subpath === (opts.subpath ?? ''),
+            (l) => l.normalized_url === remote.normalized_url && l.subpath === canonSubpath(opts.subpath),
           );
           if (toDelete.length === 0) {
             console.error('no matching link');
@@ -176,7 +186,11 @@ export function projectCommand(): Command {
         for (const l of toDelete) {
           await client.delete(`/v0/projects/${opts.project}/repo-links/${l.id}`);
         }
-        if (!opts.quiet) console.error(`unlinked ${toDelete.length}`);
+        if (opts.json) {
+          console.log(JSON.stringify({ unlinked: toDelete.length, ids: toDelete.map((l) => l.id) }));
+        } else if (!opts.quiet) {
+          console.error(`unlinked ${toDelete.length}`);
+        }
       } catch (err: any) {
         console.error(err.message);
         process.exit(1);

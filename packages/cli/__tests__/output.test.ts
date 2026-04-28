@@ -224,6 +224,14 @@ describe('output', () => {
       expect(spy).toHaveBeenCalledWith('github.com/acme/mono\tpackages/api\tproj_b');
     });
 
+    it('outputs only ids in quiet mode', () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      formatRepoLinkList(links, { quiet: true });
+      expect(spy).toHaveBeenCalledWith('rlnk_1');
+      expect(spy).toHaveBeenCalledWith('rlnk_2');
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
     it('outputs nothing when list is empty', () => {
       const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
       formatRepoLinkList([], {});

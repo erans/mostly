@@ -200,6 +200,10 @@ export function formatRepoLinkList(links: Array<{ id: string; normalized_url: st
     console.log(JSON.stringify(links));
     return;
   }
+  if (options.quiet) {
+    for (const l of links) console.log(l.id);
+    return;
+  }
   for (const l of links) {
     console.log(`${l.normalized_url}\t${l.subpath || '/'}\t${l.project_id}`);
   }
