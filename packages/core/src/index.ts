@@ -4,3 +4,4 @@ export * from './keys.js';
 export * from './crypto.js';
 export type * from './repositories/index.js';
 export * from './services/index.js';
+export * from './git-url.js';
