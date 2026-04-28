@@ -47,6 +47,10 @@ export async function resolveGitContext(opts: ResolveGitContextOpts): Promise<Gi
         result.source.project = 'git:resolve';
       }
     } catch (err: any) {
+      // 4xx from the server is a deliberate refusal; don't swallow it.
+      if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+        throw err;
+      }
       result.notes.push(`(git-context resolve failed: ${err.message ?? 'unknown'})`);
     }
   }
@@ -62,13 +66,14 @@ export async function resolveGitContext(opts: ResolveGitContextOpts): Promise<Gi
   if (ctx.authorEmail) {
     try {
       const r = await opts.client.get(`/v0/principals?email=${encodeURIComponent(ctx.authorEmail)}`);
-      const matches = (r.data ?? []) as Array<{ id: string; handle: string }>;
-      if (matches.length === 1) {
-        result.actorHandle = matches[0].handle;
+      const matches = (r.data ?? []) as Array<{ id: string; handle: string; is_active: boolean }>;
+      const active = matches.filter((p) => p.is_active);
+      if (active.length === 1) {
+        result.actorHandle = active[0].handle;
         result.source.actor = 'git:email';
-      } else if (matches.length > 1) {
+      } else if (active.length > 1) {
         result.source.actor = 'ambiguous';
-        result.notes.push(`(actor not inferred: ${matches.length} principals match ${ctx.authorEmail})`);
+        result.notes.push(`(actor not inferred: ${active.length} principals match ${ctx.authorEmail})`);
       }
     } catch (err: any) {
       result.notes.push(`(principal email lookup failed: ${err.message ?? 'unknown'})`);

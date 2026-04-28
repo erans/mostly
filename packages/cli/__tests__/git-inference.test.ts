@@ -35,7 +35,7 @@ describe('resolveGitContext', () => {
       }),
       get: vi.fn(async (path: string) => {
         if (path.startsWith('/v0/principals?email=')) {
-          return { data: [{ id: 'prin_1', handle: 'eran', email: 'eran@example.com' }] };
+          return { data: [{ id: 'prin_1', handle: 'eran', email: 'eran@example.com', is_active: true }] };
         }
         return { data: [] };
       }),
@@ -74,11 +74,63 @@ describe('resolveGitContext', () => {
     });
     const client = {
       post: vi.fn(async () => ({ data: null })),
-      get: vi.fn(async () => ({ data: [{ id: 'a', handle: 'alice' }, { id: 'b', handle: 'bob' }] })),
+      get: vi.fn(async () => ({ data: [{ id: 'a', handle: 'alice', is_active: true }, { id: 'b', handle: 'bob', is_active: true }] })),
     };
     const r = await resolveGitContext({ cwd: '/repo', client: client as any, disabled: false, runner });
     expect(r.actorHandle).toBeUndefined();
     expect(r.source.actor).toBe('ambiguous');
     expect(r.notes.some(n => n.includes('2 principals'))).toBe(true);
+  });
+
+  it('propagates 400 from the resolve endpoint (ambiguous remotes)', async () => {
+    const runner = new FakeGitRunner({
+      'rev-parse --show-toplevel': '/repo\n',
+      'remote -v': 'origin\tgit@github.com:acme/auth.git (fetch)\norigin\tgit@github.com:acme/auth.git (push)\n',
+      'rev-parse --abbrev-ref HEAD': 'main\n',
+      'config user.email': null,
+    });
+    const client = {
+      post: vi.fn(async () => { const e: any = new Error('ambiguous: ...'); e.status = 400; throw e; }),
+      get: vi.fn(),
+    };
+    await expect(
+      resolveGitContext({ cwd: '/repo', client: client as any, disabled: false, runner }),
+    ).rejects.toThrow();
+  });
+
+  it('skips inactive principals when picking the actor', async () => {
+    const runner = new FakeGitRunner({
+      'rev-parse --show-toplevel': '/repo\n',
+      'remote -v': '',
+      'rev-parse --abbrev-ref HEAD': 'main\n',
+      'config user.email': 'eran@example.com\n',
+    });
+    const client = {
+      post: vi.fn(async () => ({ data: null })),
+      get: vi.fn(async () => ({ data: [
+        { id: 'p1', handle: 'eran-old', is_active: false },
+        { id: 'p2', handle: 'eran', is_active: true },
+      ] })),
+    };
+    const r = await resolveGitContext({ cwd: '/repo', client: client as any, disabled: false, runner });
+    expect(r.actorHandle).toBe('eran');
+  });
+
+  it('falls back to default when only matches are inactive', async () => {
+    const runner = new FakeGitRunner({
+      'rev-parse --show-toplevel': '/repo\n',
+      'remote -v': '',
+      'rev-parse --abbrev-ref HEAD': 'main\n',
+      'config user.email': 'eran@example.com\n',
+    });
+    const client = {
+      post: vi.fn(async () => ({ data: null })),
+      get: vi.fn(async () => ({ data: [
+        { id: 'p1', handle: 'eran-old', is_active: false },
+      ] })),
+    };
+    const r = await resolveGitContext({ cwd: '/repo', client: client as any, disabled: false, runner });
+    expect(r.actorHandle).toBeUndefined();
+    expect(r.source.actor).toBe('none');
   });
 });
