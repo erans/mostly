@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, RepoLinkService } from '@mostly/core';
 import { errorHandler, authMiddleware, actorMiddleware } from './middleware/index.js';
-import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes, authRoutes, repoLinkRoutes } from './routes/index.js';
+import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes, authRoutes, repoLinkRoutes, gitContextRoutes } from './routes/index.js';
 
 export type AuthMethod = 'session' | 'api_key' | 'agent_token';
 
@@ -70,6 +70,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/v0/tasks', taskRoutes());
   app.route('/v0/maintenance', maintenanceRoutes());
   app.route('/v0', repoLinkRoutes());
+  app.route('/v0/git-context', gitContextRoutes());
 
   return app;
 }
