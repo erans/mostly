@@ -4,7 +4,7 @@ import { homedir } from 'os';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createLocalDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256 } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, RepoLinkService, sha256 } from '@mostly/core';
 import { NotFoundError, generateId, ID_PREFIXES } from '@mostly/types';
 import { createApp } from './app.js';
 import { fileURLToPath } from 'url';
@@ -100,6 +100,7 @@ async function main() {
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
   const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
   const authService = new AuthService(repos.principals, repos.workspaces, repos.sessions, repos.apiKeys);
+  const repoLinkService = new RepoLinkService(repos.projectRepoLinks, repos.projects);
 
   // Seed bootstrap principal if env var is set (for Docker E2E testing)
   if (process.env.MOSTLY_BOOTSTRAP_ACTOR) {
@@ -160,6 +161,7 @@ async function main() {
     taskService,
     maintenanceService,
     authService,
+    repoLinkService,
   });
 
   // Serve pre-built web UI from public/ if it exists (Docker builds copy it there)

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import type { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService } from '@mostly/core';
+import type { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, RepoLinkService } from '@mostly/core';
 import { errorHandler, authMiddleware, actorMiddleware } from './middleware/index.js';
-import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes, authRoutes } from './routes/index.js';
+import { principalRoutes, projectRoutes, taskRoutes, maintenanceRoutes, authRoutes, repoLinkRoutes } from './routes/index.js';
 
 export type AuthMethod = 'session' | 'api_key' | 'agent_token';
 
@@ -15,6 +15,7 @@ export type AppEnv = {
     taskService: TaskService;
     maintenanceService: MaintenanceService;
     authService: AuthService;
+    repoLinkService: RepoLinkService;
     parsedBody: Record<string, unknown>;
   };
 };
@@ -26,6 +27,7 @@ export interface AppDependencies {
   taskService: TaskService;
   maintenanceService: MaintenanceService;
   authService: AuthService;
+  repoLinkService: RepoLinkService;
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnv> {
@@ -48,6 +50,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     c.set('taskService', deps.taskService);
     c.set('maintenanceService', deps.maintenanceService);
     c.set('authService', deps.authService);
+    c.set('repoLinkService', deps.repoLinkService);
     await next();
   });
 
@@ -66,6 +69,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/v0/projects', projectRoutes());
   app.route('/v0/tasks', taskRoutes());
   app.route('/v0/maintenance', maintenanceRoutes());
+  app.route('/v0', repoLinkRoutes());
 
   return app;
 }

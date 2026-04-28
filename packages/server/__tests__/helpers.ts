@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createInMemoryDb, runMigrations, createRepositories, createTransactionManager } from '@mostly/db';
-import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, sha256, generateToken } from '@mostly/core';
+import { PrincipalService, ProjectService, TaskService, MaintenanceService, AuthService, RepoLinkService, sha256, generateToken } from '@mostly/core';
 import { createApp } from '../src/app.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,6 +55,7 @@ export function createTestApp() {
   const taskService = new TaskService(repos.tasks, repos.taskUpdates, repos.projects, tx);
   const maintenanceService = new MaintenanceService(repos.tasks, repos.taskUpdates, tx);
   const authService = new AuthService(repos.principals, repos.workspaces, repos.sessions, repos.apiKeys);
+  const repoLinkService = new RepoLinkService(repos.projectRepoLinks, repos.projects);
 
   const app = createApp({
     workspaceId: TEST_WORKSPACE_ID,
@@ -63,6 +64,7 @@ export function createTestApp() {
     taskService,
     maintenanceService,
     authService,
+    repoLinkService,
   });
 
   return {
@@ -78,5 +80,6 @@ export function createTestApp() {
     taskService,
     maintenanceService,
     authService,
+    repoLinkService,
   };
 }

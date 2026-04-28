@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { generateId, ID_PREFIXES, InvalidArgumentError, NotFoundError } from '@mostly/types';
+import { generateId, ID_PREFIXES, ConflictError, InvalidArgumentError, NotFoundError } from '@mostly/types';
 import { RepoLinkService } from '../src/services/repo-link.js';
 
 function makeFakeRepo(): any {
@@ -117,7 +117,7 @@ describe('RepoLinkService.link', () => {
     await svc.link('ws_1', 'proj_1', { normalized_url: 'github.com/acme/auth', subpath: '' }, 'prin_1');
     await expect(
       svc.link('ws_1', 'proj_2', { normalized_url: 'github.com/acme/auth', subpath: '' }, 'prin_1'),
-    ).rejects.toBeInstanceOf(InvalidArgumentError);
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });
 

@@ -1,4 +1,4 @@
-import { generateId, ID_PREFIXES, InvalidArgumentError, NotFoundError } from '@mostly/types';
+import { generateId, ID_PREFIXES, ConflictError, InvalidArgumentError, NotFoundError } from '@mostly/types';
 import type { ProjectRepoLink, GitContextResolveResponse } from '@mostly/types';
 import type { ProjectRepoLinkRepository, ProjectRepository } from '../repositories/index.js';
 
@@ -26,7 +26,7 @@ export class RepoLinkService {
     const existing = await this.links.findByUrlAndSubpath(workspaceId, input.normalized_url, input.subpath);
     if (existing) {
       if (existing.project_id === projectId) return existing;
-      throw new InvalidArgumentError(
+      throw new ConflictError(
         `(${input.normalized_url}, "${input.subpath}") already linked to project ${existing.project_id}`,
       );
     }
